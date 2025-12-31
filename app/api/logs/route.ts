@@ -29,3 +29,36 @@ export async function GET() {
     );
   }
 }
+
+export async function POST(req: NextRequest) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+  if (error || !user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const body = await req.json();
+  const { content } = body;
+
+  if (!content) {
+    return NextResponse.json({ error: 'No content provided' }, { status: 400 });
+  }
+
+  try {
+    const log = await prisma.log.create({
+      data: {
+        content: content,
+        userId: user.id,
+      },
+    });
+    return NextResponse.json(log);
+  } catch (error) {
+    return NextResponse.json(
+      { error: `Fail to create: ${JSON.stringify(error)}` },
+      { status: 500 },
+    );
+  }
+}
