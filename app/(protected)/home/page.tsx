@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import LogFeed from './components/log-feed';
-import { CreateLogForm } from './components/create-log-form';
 import SearchBar from './components/search-bar';
+import { CreateLogDialog } from './components/create-log-dialog';
 
 type SearchParams = Promise<{ q?: string }>;
 
@@ -16,7 +16,7 @@ export default async function HomePage(props: {
 
       
       {/* The Write Layer */}
-      {!query && <CreateLogForm />}
+      {!query && <CreateLogDialog />}
       <SearchBar />
 
       {/* The Read Layer */}

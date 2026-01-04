@@ -11,9 +11,8 @@ export type ActionState = {
 };
 
 export async function createLog(
-  prevState: any,
-  formData: FormData,
-): Promise<ActionState> {
+  rawContent: string
+){
   const supabase = await createClient();
   const {
     data: { user },
@@ -24,7 +23,6 @@ export async function createLog(
   }
 
   // 1. Validate Input
-  const rawContent = formData.get('content');
   const parsed = LogSchema.safeParse({ content: rawContent });
 
   if (!parsed.success) {

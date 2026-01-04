@@ -16,6 +16,7 @@ import { useState } from 'react';
 import { updateLog } from '../actions';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
+import ReactMarkdown from 'react-markdown';
 
 interface LogCardProps {
   log: any;
@@ -97,13 +98,13 @@ export default function LogCard({ log, onDelete }: LogCardProps) {
           </Badge>
 
           {!isEditing && (
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-6 w-6 text-muted-foreground hover:text-primary"
+            <Button
+              variant='ghost'
+              size='icon'
+              className='h-6 w-6 text-muted-foreground hover:text-primary'
               onClick={() => setIsEditing(true)}
             >
-              <Pencil className="h-3 w-3" />
+              <Pencil className='h-3 w-3' />
             </Button>
           )}
 
@@ -132,7 +133,6 @@ export default function LogCard({ log, onDelete }: LogCardProps) {
                 }}
                 disabled={isLoading}
               >
-        
                 <X className='h-3 w-3 mr-1' /> Cancel
               </Button>
               <Button size='sm' onClick={handleSave} disabled={isLoading}>
@@ -148,9 +148,9 @@ export default function LogCard({ log, onDelete }: LogCardProps) {
         ) : (
           <>
             {/* The Content: Monospace font for that 'hacker' vibe */}
-            <pre className='mt-2 w-full overflow-x-auto rounded-lg bg-slate-950 p-4 font-mono text-xs text-slate-50'>
-              {initialContent}
-            </pre>
+            <div className='mt-2 w-full text-sm prose prose-neutral dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:p-0 prose-pre:bg-transparent'>
+              <ReactMarkdown>{initialContent}</ReactMarkdown>
+            </div>
 
             {/* Footer ID (Subtle) */}
             <div className='mt-2 text-[10px] text-muted-foreground uppercase tracking-widest'>
