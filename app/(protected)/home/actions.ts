@@ -44,3 +44,34 @@ export async function createLog(prevState: any, formData: FormData): Promise<Act
     return { success: false, message: 'Database error' };
   }
 }
+
+export async function deleteLog(id: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, message: 'Unauthorized' };
+  }
+
+  try {
+    // Security: We use updateMany/deleteMany with userId to ensure 
+    // a user cannot delete someone else's log by guessing an ID.
+    // Prisma returns { count: n }. If count is 0, the log didn't exist or wasn't yours.
+    const result = await prisma.log.deleteMany({
+      where: {
+        id: id,
+        userId: user.id, // THE CRITICAL CHECK
+      },
+    });
+
+    if (result.count === 0) {
+      return { success: false, message: 'Log not found or unauthorized' };
+    }
+
+    revalidatePath('/home');
+    return { success: true, message: 'Log deleted' };
+  } catch (error) {
+    console.error('Failed to delete log:', error);
+    return { success: false, message: 'Failed to delete' };
+  }
+}

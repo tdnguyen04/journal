@@ -10,11 +10,11 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Terminal, Clock } from 'lucide-react';
 import { Log } from '@/app/generated/prisma/client';
+import DeleteButton from './delete-button';
 
 interface LogCardProps {
-  log: Omit<Log, 'createdAt' | 'userId'> & { 
-    createdAt: string | Date 
-  };
+  log: any; 
+  onDelete: () => void; // <--- Receive the function
 }
 
 const formatDate = (dateString: string | Date) => {
@@ -27,14 +27,14 @@ const formatDate = (dateString: string | Date) => {
   });
 };
 
-export default function LogCard({ log }: LogCardProps) {
+export default function LogCard({ log, onDelete }: LogCardProps) {
   const displayContent =
     typeof log.content === 'string'
       ? log.content
       : JSON.stringify(log.content, null, 2);
   return (
     <Card className='hover:bg-muted/50'>
-      <CardHeader className='grid grid-cols-[1fr_auto] items-start gap-4 space-y-0 pb-2'>
+      <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
         <div className='flex items-center gap-2'>
           <div className='rounded-md bg-primary/10 p-2 text-primary'>
             <Terminal className='h-4 w-4' />
@@ -43,13 +43,17 @@ export default function LogCard({ log }: LogCardProps) {
             System Log
           </CardTitle>
         </div>
-        <Badge
-          variant='outline'
-          className='flex items-center gap-1 font-mono text-xs font-normal text-muted-foreground'
-        >
-          <Clock className='h-3 w-3' />
-          {formatDate(log.createdAt)}
-        </Badge>
+        <div className='flex items-center gap-3'>
+          <Badge
+            variant='outline'
+            className='flex items-center gap-1 font-mono text-xs font-normal text-muted-foreground'
+          >
+            <Clock className='h-3 w-3' />
+            {formatDate(log.createdAt)}
+          </Badge>
+          
+          <DeleteButton onDelete={onDelete} />
+        </div>
       </CardHeader>
       <CardContent>
         {/* The Content: Monospace font for that 'hacker' vibe */}
