@@ -8,11 +8,14 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Terminal, Clock } from 'lucide-react';
+import { Terminal, Clock, Loader2, Check, X, Pencil } from 'lucide-react';
 import { Log } from '@/app/generated/prisma/client';
 import DeleteButton from './delete-button';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
+import { updateLog } from '../actions';
+import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
 
 interface LogCardProps {
   log: any;
@@ -31,16 +34,34 @@ const formatDate = (dateString: string | Date) => {
 
 export default function LogCard({ log, onDelete }: LogCardProps) {
   const [isExiting, setIsExiting] = useState(false);
-  const displayContent =
-    typeof log.content === 'string'
-      ? log.content
-      : JSON.stringify(log.content, null, 2);
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const initialContent =
+    typeof log.content === 'string' ? log.content : log.content?.note || '';
+
+  const [editedContent, setEditedContent] = useState(initialContent);
+
   const handleCreateDeleteSequence = () => {
     // 1. Trigger the visual exit
     setIsExiting(true);
 
     // 2. Notify the parent to remove data (Parent will wait 500ms matching our duration)
     onDelete();
+  };
+
+  const handleSave = async () => {
+    setIsLoading(true);
+    const result = await updateLog(log.id, editedContent);
+    setIsLoading(false);
+
+    if (result.success) {
+      setIsEditing(false);
+      // The content will update automatically via revalidatePath -> parent prop update
+    } else {
+      alert(result.message);
+    }
   };
   return (
     <Card
@@ -75,19 +96,68 @@ export default function LogCard({ log, onDelete }: LogCardProps) {
             {formatDate(log.createdAt)}
           </Badge>
 
-          <DeleteButton onDelete={handleCreateDeleteSequence} isLoading={isExiting}/>
+          {!isEditing && (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-6 w-6 text-muted-foreground hover:text-primary"
+              onClick={() => setIsEditing(true)}
+            >
+              <Pencil className="h-3 w-3" />
+            </Button>
+          )}
+
+          <DeleteButton
+            onDelete={handleCreateDeleteSequence}
+            isLoading={isExiting}
+          />
         </div>
       </CardHeader>
       <CardContent>
-        {/* The Content: Monospace font for that 'hacker' vibe */}
-        <pre className='mt-2 w-full overflow-x-auto rounded-lg bg-slate-950 p-4 font-mono text-xs text-slate-50'>
-          {displayContent}
-        </pre>
+        {isEditing ? (
+          // --- EDIT MODE ---
+          <div className='flex flex-col gap-2 mt-2'>
+            <Textarea
+              value={editedContent}
+              onChange={(e) => setEditedContent(e.target.value)}
+              className='font-mono text-xs bg-background min-h-[100px]'
+            />
+            <div className='flex justify-end gap-2'>
+              <Button
+                variant='ghost'
+                size='sm'
+                onClick={() => {
+                  setIsEditing(false);
+                  setEditedContent(initialContent); // Reset on cancel
+                }}
+                disabled={isLoading}
+              >
+        
+                <X className='h-3 w-3 mr-1' /> Cancel
+              </Button>
+              <Button size='sm' onClick={handleSave} disabled={isLoading}>
+                {isLoading ? (
+                  <Loader2 className='h-3 w-3 animate-spin' />
+                ) : (
+                  <Check className='h-3 w-3 mr-1' />
+                )}
+                Save
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* The Content: Monospace font for that 'hacker' vibe */}
+            <pre className='mt-2 w-full overflow-x-auto rounded-lg bg-slate-950 p-4 font-mono text-xs text-slate-50'>
+              {initialContent}
+            </pre>
 
-        {/* Footer ID (Subtle) */}
-        <div className='mt-2 text-[10px] text-muted-foreground uppercase tracking-widest'>
-          ID: {log.id}
-        </div>
+            {/* Footer ID (Subtle) */}
+            <div className='mt-2 text-[10px] text-muted-foreground uppercase tracking-widest'>
+              ID: {log.id}
+            </div>
+          </>
+        )}
       </CardContent>
     </Card>
   );
