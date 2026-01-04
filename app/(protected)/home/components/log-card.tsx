@@ -32,7 +32,6 @@ export default function LogCard({ log }: LogCardProps) {
     typeof log.content === 'string'
       ? log.content
       : JSON.stringify(log.content, null, 2);
-  console.log(displayContent);
   return (
     <Card className='hover:bg-muted/50'>
       <CardHeader className='grid grid-cols-[1fr_auto] items-start gap-4 space-y-0 pb-2'>
