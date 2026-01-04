@@ -2,6 +2,7 @@ import PageWrapper from '@/components/tri-ui/page-wrapper';
 import Footer from '@/components/tri-ui/footer';
 import SectionsWrapper from '@/components/tri-ui/sections-wrapper';
 import Navbar from '@/components/navbar';
+import { Suspense } from 'react';
 
 export default function ProtectedLayout({
   children,
@@ -12,7 +13,9 @@ export default function ProtectedLayout({
     <main className='min-h-screen flex flex-col items-center'>
       <PageWrapper className='items-center'>
         <Navbar />
-        <SectionsWrapper>{children}</SectionsWrapper>
+        <SectionsWrapper>
+          <Suspense>{children}</Suspense>
+        </SectionsWrapper>
         <Footer />
       </PageWrapper>
     </main>
