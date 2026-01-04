@@ -3,7 +3,7 @@
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import LogCard from './log-card';
 import { Log } from '@/app/generated/prisma/client';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { deleteLog } from '../actions';
 
 export default function LogList({ logs: initialLogs }: { logs: Log[] }) {
@@ -17,6 +17,38 @@ export default function LogList({ logs: initialLogs }: { logs: Log[] }) {
   useEffect(() => {
     setLogs(initialLogs);
   }, [initialLogs]);
+
+  // --- 1. THE GROUPING ENGINE ---
+  const groupedLogs = useMemo(() => {
+    const groups: Record<string, Log[]> = {};
+    
+    logs.forEach((log) => {
+      // Create a key like "2024-01-20"
+      const dateKey = new Date(log.createdAt).toDateString();
+      if (!groups[dateKey]) {
+        groups[dateKey] = [];
+      }
+      groups[dateKey].push(log);
+    });
+
+    return groups;
+  }, [logs]);
+
+  const getHeaderTitle = (dateKey: string) => {
+    const date = new Date(dateKey);
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (date.toDateString() === today.toDateString()) return "Today";
+    if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
+    
+    return date.toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      month: 'short', 
+      day: 'numeric' 
+    });
+  };
 
   // 3. The Optimistic Handler
   const handleDelete = async (id: string) => {
@@ -38,12 +70,36 @@ export default function LogList({ logs: initialLogs }: { logs: Log[] }) {
   };
 
   return (
-    <div ref={parent} className='flex flex-col gap-4 w-full'>
-      {logs.map((log) => (
-        // We ensure date is a string to satisfy serialization if needed,
-        // though passing the object directly often works if types align.
-        <LogCard key={log.id} log={log} onDelete={() => handleDelete(log.id)} />
+    <div className="w-full space-y-8"> 
+      {Object.entries(groupedLogs).map(([dateKey, groupLogs]) => (
+        <div key={dateKey} className="relative">
+          
+          {/* STICKY DATE HEADER */}
+          <div className="sticky top-0 z-10 py-2 bg-background/95 backdrop-blur-sm border-b mb-4">
+            <h3 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-primary/50"></span>
+              {getHeaderTitle(dateKey)}
+            </h3>
+          </div>
+
+          {/* LIST FOR THIS DATE */}
+          <div ref={parent} className="flex flex-col gap-4">
+            {groupLogs.map((log) => (
+              <LogCard 
+                key={log.id} 
+                log={log} 
+                onDelete={() => handleDelete(log.id)} 
+              />
+            ))}
+          </div>
+        </div>
       ))}
+      
+      {logs.length === 0 && (
+        <div className="text-center p-10 border border-dashed rounded-lg text-muted-foreground">
+           No logs found.
+        </div>
+      )}
     </div>
   );
 }
