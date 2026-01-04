@@ -20,16 +20,20 @@ export default function LogList({ logs: initialLogs }: { logs: Log[] }) {
 
   // 3. The Optimistic Handler
   const handleDelete = async (id: string) => {
-    // A. INSTANTLY remove from UI (Trigger Animation)
+    // 1. CHOREOGRAPHY: Wait for the card's exit animation (500ms)
+    // We don't remove it from 'logs' yet. We let the Card component handle the visual exit.
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // 2. OPTIMISTIC UPDATE: Remove from UI instantly after animation
     setLogs((current) => current.filter((log) => log.id !== id));
 
-    // B. Tell Server to delete (Background)
+    // 3. SERVER ACTION: Sync with database in background
     const result = await deleteLog(id);
 
-    // C. Rollback if server fails (Optional safety)
+    // 4. ROLLBACK: If server fails, put it back (Safety Net)
     if (!result.success) {
-      alert('Failed to delete');
-      setLogs(initialLogs); // Revert
+      alert("Could not delete log.");
+      setLogs(initialLogs); 
     }
   };
 

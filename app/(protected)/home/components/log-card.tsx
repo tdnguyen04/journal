@@ -11,9 +11,11 @@ import { Badge } from '@/components/ui/badge';
 import { Terminal, Clock } from 'lucide-react';
 import { Log } from '@/app/generated/prisma/client';
 import DeleteButton from './delete-button';
+import { cn } from '@/lib/utils';
+import { useState } from 'react';
 
 interface LogCardProps {
-  log: any; 
+  log: any;
   onDelete: () => void; // <--- Receive the function
 }
 
@@ -28,12 +30,33 @@ const formatDate = (dateString: string | Date) => {
 };
 
 export default function LogCard({ log, onDelete }: LogCardProps) {
+  const [isExiting, setIsExiting] = useState(false);
   const displayContent =
     typeof log.content === 'string'
       ? log.content
       : JSON.stringify(log.content, null, 2);
+  const handleCreateDeleteSequence = () => {
+    // 1. Trigger the visual exit
+    setIsExiting(true);
+
+    // 2. Notify the parent to remove data (Parent will wait 500ms matching our duration)
+    onDelete();
+  };
   return (
-    <Card className='hover:bg-muted/50'>
+    <Card
+      className={cn(
+        // Base Transition: Smooth movement for all properties
+        'transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]',
+
+        // EXIT STATE:
+        // 1. Slide Right (translate-x-full)
+        // 2. Fade Out (opacity-0)
+        // 3. Turn Red (bg-red-500/10) - Optional dramatic flair
+        isExiting
+          ? 'translate-x-full opacity-0 bg-destructive/10 border-destructive'
+          : 'translate-x-0 opacity-100 hover:bg-muted/50',
+      )}
+    >
       <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
         <div className='flex items-center gap-2'>
           <div className='rounded-md bg-primary/10 p-2 text-primary'>
@@ -51,8 +74,8 @@ export default function LogCard({ log, onDelete }: LogCardProps) {
             <Clock className='h-3 w-3' />
             {formatDate(log.createdAt)}
           </Badge>
-          
-          <DeleteButton onDelete={onDelete} />
+
+          <DeleteButton onDelete={handleCreateDeleteSequence} isLoading={isExiting}/>
         </div>
       </CardHeader>
       <CardContent>
