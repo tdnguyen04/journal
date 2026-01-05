@@ -4,6 +4,10 @@ import { revalidatePath } from 'next/cache';
 import prisma from '@/lib/prisma/prisma';
 import { createClient } from '@/lib/supabase/server';
 import { LogSchema } from './schemas';
+import { openai } from '@ai-sdk/openai';
+import { generateText, Output } from 'ai'
+import { AnalysisSchema } from '@/lib/validations/analysis';
+
 
 export type ActionState = {
   success: boolean;
@@ -120,5 +124,72 @@ export async function updateLog(id: string, rawContent: string) {
       success: false,
       message: `Log failed to update: ${JSON.stringify(error)}`,
     };
+  }
+}
+
+export async function analyzeLog(id: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) return { success: false, message: 'Unauthorized' };
+
+  // 1. Fetch Log and User Preferences
+  const [log, prefs] = await Promise.all([
+    prisma.log.findUnique({ where: { id, userId: user.id } }),
+    prisma.userPreferences.findUnique({ where: { userId: user.id } })
+  ]);
+
+  if (!log) return { success: false, message: 'Log not found' };
+
+  // 2. Prepare content
+  const contentText = typeof log.content === 'string' 
+    ? log.content 
+    : (log.content as any)?.note || '';
+
+  const userInstructions = prefs?.preferences 
+    ? `The user has specified these tracking preferences: "${prefs.preferences}". Focus strictly on extracting these metrics.`
+    : "The user has no specific preferences. Extract general interesting metrics.";
+
+  try {
+    // 3. Call OpenAI (SDK v6 Syntax)
+    const { output } = await generateText({
+      model: openai('gpt-4o-mini'),
+      
+      // The new "Standard" way to get JSON:
+      output: Output.object({ 
+        schema: AnalysisSchema 
+      }),
+      
+      prompt: `
+        Analyze this journal entry:
+        "${contentText}"
+
+        ${userInstructions}
+        
+        Extract sentiment, tags, and specifically any metrics that match the user's preferences.
+      `,
+    });
+
+    // 4. Save result
+    const currentContent = typeof log.content === 'object' && log.content !== null
+      ? (log.content as object) 
+      : { note: contentText };
+    
+    await prisma.log.update({
+      where: { id },
+      data: {
+        content: {
+          ...currentContent,
+          analysis: output // <--- It returns 'output', not 'object' now
+        }
+      }
+    });
+
+    revalidatePath('/home');
+    return { success: true, message: 'Analysis complete' };
+
+  } catch (error: any) {
+    console.error("AI Error Details:", error);
+    return { success: false, message: `Analysis failed: ${error.message}` };
   }
 }

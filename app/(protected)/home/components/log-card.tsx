@@ -8,12 +8,12 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Terminal, Clock, Loader2, Check, X, Pencil } from 'lucide-react';
+import { Terminal, Clock, Loader2, Check, X, Pencil, Sparkles } from 'lucide-react';
 import { Log } from '@/app/generated/prisma/client';
 import DeleteButton from './delete-button';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
-import { updateLog } from '../actions';
+import { analyzeLog, updateLog } from '../actions';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import ReactMarkdown from 'react-markdown';
@@ -64,6 +64,18 @@ export default function LogCard({ log, onDelete }: LogCardProps) {
       alert(result.message);
     }
   };
+
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  const handleAnalyze = async () => {
+    setIsAnalyzing(true);
+    const result = await analyzeLog(log.id);
+    setIsAnalyzing(false);
+
+    if (!result.success) {
+      alert(result.message); // Or use toast
+    }
+  };
   return (
     <Card
       className={cn(
@@ -96,6 +108,18 @@ export default function LogCard({ log, onDelete }: LogCardProps) {
             <Clock className='h-3 w-3' />
             {formatDate(log.createdAt)}
           </Badge>
+
+          <Button
+            variant='ghost'
+            size='icon'
+            className='h-6 w-6 text-muted-foreground hover:text-yellow-500'
+            onClick={handleAnalyze}
+            disabled={isAnalyzing}
+          >
+            <Sparkles
+              className={`h-3 w-3 ${isAnalyzing ? 'animate-spin' : ''}`}
+            />
+          </Button>
 
           {!isEditing && (
             <Button

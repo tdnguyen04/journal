@@ -8,6 +8,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@ai-sdk/openai": "^3.0.2",
     "@formkit/auto-animate": "^0.9.0",
     "@hookform/resolvers": "^5.2.2",
     "@prisma/adapter-pg": "^7.2.0",
@@ -21,6 +22,7 @@
     "@supabase/ssr": "latest",
     "@supabase/supabase-js": "latest",
     "@tailwindcss/typography": "^0.5.19",
+    "ai": "^6.0.7",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dotenv": "^17.2.3",
@@ -34,7 +36,7 @@
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.3.0",
     "tsx": "^4.21.0",
-    "zod": "^4.3.4"
+    "zod": "^4.3.5"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
