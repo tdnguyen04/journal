@@ -8,7 +8,10 @@ export default async function Navbar() {
   return (
     <NavbarWrapper>
       <div className='flex gap-5 items-center font-semibold'>
-        <Link href={'/'}>{process.env.APP_NAME}</Link>
+        <Link href={'/home'}>Journal</Link>
+        <Link href={'/settings'} className='text-sm text-muted-foreground hover:text-foreground'>
+          Settings
+        </Link>
       </div>
       <Suspense>
         <AuthButton />

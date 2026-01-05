@@ -21,3 +21,13 @@ model Log {
 
   @@map("logs")
 }
+
+model UserPreferences {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @unique @db.Uuid
+  preferences String @db.Text
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  @@map("user_preferences")
+}
