@@ -8,7 +8,17 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Terminal, Clock, Loader2, Check, X, Pencil, Sparkles } from 'lucide-react';
+import {
+  Terminal,
+  Clock,
+  Loader2,
+  Check,
+  X,
+  Pencil,
+  Sparkles,
+  FileText,
+  Brain,
+} from 'lucide-react';
 import { Log } from '@/app/generated/prisma/client';
 import DeleteButton from './delete-button';
 import { cn } from '@/lib/utils';
@@ -17,6 +27,8 @@ import { analyzeLog, updateLog } from '../actions';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import ReactMarkdown from 'react-markdown';
+import { Analysis } from '@/lib/validations/analysis';
+import { AnalysisView } from './analysis-view';
 
 interface LogCardProps {
   log: any;
@@ -76,6 +88,12 @@ export default function LogCard({ log, onDelete }: LogCardProps) {
       alert(result.message); // Or use toast
     }
   };
+
+  const [showAnalysis, setShowAnalysis] = useState(false);
+
+  // Helper to safely check if analysis exists
+  const analysisData = (log.content as any)?.analysis as Analysis | undefined;
+  const hasAnalysis = !!analysisData;
   return (
     <Card
       className={cn(
@@ -108,6 +126,22 @@ export default function LogCard({ log, onDelete }: LogCardProps) {
             <Clock className='h-3 w-3' />
             {formatDate(log.createdAt)}
           </Badge>
+
+          {hasAnalysis && (
+            <Button
+              variant='ghost'
+              size='icon'
+              className={`h-6 w-6 ${showAnalysis ? 'text-primary' : 'text-muted-foreground'}`}
+              onClick={() => setShowAnalysis(!showAnalysis)}
+              title={showAnalysis ? 'View Original Text' : 'View Insights'}
+            >
+              {showAnalysis ? (
+                <FileText className='h-3 w-3' />
+              ) : (
+                <Brain className='h-3 w-3' />
+              )}
+            </Button>
+          )}
 
           <Button
             variant='ghost'
@@ -171,10 +205,13 @@ export default function LogCard({ log, onDelete }: LogCardProps) {
           </div>
         ) : (
           <>
-            {/* The Content: Monospace font for that 'hacker' vibe */}
-            <div className='mt-2 w-full text-sm prose prose-neutral dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:p-0 prose-pre:bg-transparent'>
-              <ReactMarkdown>{initialContent}</ReactMarkdown>
-            </div>
+            {showAnalysis && analysisData ? (
+              <AnalysisView analysis={analysisData} />
+            ) : (
+              <div className='mt-2 w-full text-sm prose prose-neutral dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:p-0 prose-pre:bg-transparent'>
+                <ReactMarkdown>{initialContent}</ReactMarkdown>
+              </div>
+            )}
 
             {/* Footer ID (Subtle) */}
             <div className='mt-2 text-[10px] text-muted-foreground uppercase tracking-widest'>
