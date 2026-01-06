@@ -43,6 +43,7 @@ import {
 interface LogCardProps {
   log: any;
   onDelete: () => void; // <--- Receive the function
+  availableTags: string[];
 }
 
 const formatDate = (dateString: string | Date) => {
@@ -55,15 +56,11 @@ const formatDate = (dateString: string | Date) => {
   });
 };
 
-const AVAILABLE_TAGS = [
-  'Health',
-  'Learning',
-  'Connection',
-  'Deep Work',
-  'Growth',
-];
-
-export default function LogCard({ log, onDelete }: LogCardProps) {
+export default function LogCard({
+  log,
+  onDelete,
+  availableTags,
+}: LogCardProps) {
   const [isExiting, setIsExiting] = useState(false);
 
   const [isEditing, setIsEditing] = useState(false);
@@ -329,25 +326,34 @@ export default function LogCard({ log, onDelete }: LogCardProps) {
                   </span>
                 ))}
 
-              {/* B. ADD TAG BUTTON (Dropdown) */}
+              {/* B. ADD TAG BUTTON (Smart Dropdown) */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button
-                    className='inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 transition-colors'
-                    title='Add Tag'
-                  >
-                    <Plus size={12} />
-                  </button>
+                  {/* LOGIC: If no tags, show "Add Tag" text. If tags exist, show small "+" circle. */}
+                  {!log.tagValues || log.tagValues.length === 0 ? (
+                    <button className='inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 transition-colors border border-dashed border-slate-300 dark:border-slate-700 hover:border-slate-400'>
+                      <Plus size={10} />
+                      Add Tag
+                    </button>
+                  ) : (
+                    <button
+                      className='inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 transition-colors'
+                      title='Add Tag'
+                    >
+                      <Plus size={12} />
+                    </button>
+                  )}
                 </DropdownMenuTrigger>
+
                 <DropdownMenuContent align='start' className='w-32'>
-                  {AVAILABLE_TAGS.map((tag) => {
+                  {availableTags.map((tag) => {
                     const isSelected = log.tagValues?.includes(tag);
                     return (
                       <DropdownMenuItem
                         key={tag}
                         onClick={() => handleTagToggle(tag)}
                         className='text-xs flex justify-between cursor-pointer'
-                        disabled={isSelected} // Optional: disable if already added
+                        disabled={isSelected}
                       >
                         {tag}
                         {isSelected && (

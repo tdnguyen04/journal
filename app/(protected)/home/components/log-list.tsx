@@ -6,7 +6,12 @@ import { Log } from '@/app/generated/prisma/client';
 import { useEffect, useMemo, useState } from 'react';
 import { deleteLog } from '../actions';
 
-export default function LogList({ logs: initialLogs }: { logs: Log[] }) {
+interface LogListProps {
+  logs: Log[];
+  availableTags: string[];
+}
+
+export default function LogList({ logs: initialLogs, availableTags }: LogListProps) {
   // This hook automatically animates any element added or removed from this parent
   const [parent] = useAutoAnimate();
 
@@ -21,7 +26,7 @@ export default function LogList({ logs: initialLogs }: { logs: Log[] }) {
   // --- 1. THE GROUPING ENGINE ---
   const groupedLogs = useMemo(() => {
     const groups: Record<string, Log[]> = {};
-    
+
     logs.forEach((log) => {
       // Create a key like "2024-01-20"
       const dateKey = new Date(log.createdAt).toDateString();
@@ -40,13 +45,13 @@ export default function LogList({ logs: initialLogs }: { logs: Log[] }) {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
 
-    if (date.toDateString() === today.toDateString()) return "Today";
-    if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
-    
-    return date.toLocaleDateString('en-US', { 
-      weekday: 'long', 
-      month: 'short', 
-      day: 'numeric' 
+    if (date.toDateString() === today.toDateString()) return 'Today';
+    if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+
+    return date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'short',
+      day: 'numeric',
     });
   };
 
@@ -64,40 +69,40 @@ export default function LogList({ logs: initialLogs }: { logs: Log[] }) {
 
     // 4. ROLLBACK: If server fails, put it back (Safety Net)
     if (!result.success) {
-      alert("Could not delete log.");
-      setLogs(initialLogs); 
+      alert('Could not delete log.');
+      setLogs(initialLogs);
     }
   };
 
   return (
-    <div className="w-full space-y-8"> 
+    <div className='w-full space-y-8'>
       {Object.entries(groupedLogs).map(([dateKey, groupLogs]) => (
-        <div key={dateKey} className="relative">
-          
+        <div key={dateKey} className='relative'>
           {/* STICKY DATE HEADER */}
-          <div className="sticky top-0 z-10 py-2 bg-background/95 backdrop-blur-sm border-b mb-4">
-            <h3 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-primary/50"></span>
+          <div className='sticky top-0 z-10 py-2 bg-background/95 backdrop-blur-sm border-b mb-4'>
+            <h3 className='text-sm font-semibold text-muted-foreground flex items-center gap-2'>
+              <span className='w-2 h-2 rounded-full bg-primary/50'></span>
               {getHeaderTitle(dateKey)}
             </h3>
           </div>
 
           {/* LIST FOR THIS DATE */}
-          <div ref={parent} className="flex flex-col gap-4">
+          <div ref={parent} className='flex flex-col gap-4'>
             {groupLogs.map((log) => (
-              <LogCard 
-                key={log.id} 
-                log={log} 
-                onDelete={() => handleDelete(log.id)} 
+              <LogCard
+                key={log.id}
+                log={log}
+                onDelete={() => handleDelete(log.id)}
+                availableTags={availableTags}
               />
             ))}
           </div>
         </div>
       ))}
-      
+
       {logs.length === 0 && (
-        <div className="text-center p-10 border border-dashed rounded-lg text-muted-foreground">
-           No logs found.
+        <div className='text-center p-10 border border-dashed rounded-lg text-muted-foreground'>
+          No logs found.
         </div>
       )}
     </div>
