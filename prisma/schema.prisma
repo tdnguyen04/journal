@@ -8,10 +8,12 @@ datasource db {
 }
 
 model Log {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId    String   @db.Uuid
-  content   Json?
-  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String   @db.Uuid
+  content    Json?
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+  isRedacted Boolean  @default(false) // True if they typed /redacted
+  tagValues  String[] @default([]) // Stores ["Empathy", "Growth"]
 
   @@map("logs")
 }
@@ -26,5 +28,6 @@ model UserPreferences {
   connectToken   String?  @unique
   telegramChatId String?  @unique
   userName       String?
+
   @@map("user_preferences")
 }

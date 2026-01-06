@@ -104,24 +104,56 @@ export async function POST(req: Request) {
     // Read the name directly from the preferences row we just fetched
     const displayName = existingUser.userName || 'Friend';
 
+    // 1. Check for Redaction
+    let finalNote = text;
+    let isRedacted = false;
+
+    // Check for /redacted or /secret (Case insensitive)
+    if (
+      text.toLowerCase().startsWith('/redacted') ||
+      text.toLowerCase().startsWith('/secret')
+    ) {
+      isRedacted = true;
+      // Improved Regex: Handles "/redacted:", "/redacted " and "/redacted\n"
+      finalNote = text.replace(/^\/(redacted|secret)[:\s]*/i, '').trim();
+    }
+
     try {
+      // 2. SAVE TO DB (The important part)
       await prisma.log.create({
         data: {
           userId: existingUser.userId,
-          content: { note: text, timestamp: new Date().toISOString() },
+          content: { note: finalNote, timestamp: new Date().toISOString() },
+          isRedacted: isRedacted,
+          tagValues: [],
         },
       });
 
-      // Personalize the reply
-      await sendMessage(chatId, `📝 Saved, ${displayName}!`);
-    } catch (e) {
-      await sendMessage(chatId, `Error saving log.${e}`);
+      // 3. REPLY TO USER (The "Nice to have" part)
+      // We wrap this in a separate block so network errors don't scare the user
+      try {
+        if (isRedacted) {
+          await sendMessage(chatId, `🔒 Log saved (Hidden), ${displayName}!`);
+        } else {
+          await sendMessage(chatId, `📝 Saved, ${displayName}!`);
+        }
+      } catch (replyError) {
+        // If Telegram is down, just log it. Do NOT crash the function.
+        console.error('Failed to send reply to Telegram:', replyError);
+      }
+      // TODO: Here is where we will trigger the "NPC vs Main Character" question next!
+    } catch (dbError) {
+      console.error('Database Error:', dbError);
+      await sendMessage(chatId, 'Error saving log to database.');
     }
 
     return NextResponse.json({ ok: true });
   }
 
-  await sendMessage(chatId, "Please connect your account first via the website.");
-  
+  await sendMessage(
+    chatId,
+    'Please connect your account first via the website.',
+  );
+
   return NextResponse.json({ ok: true });
 }
