@@ -414,6 +414,10 @@ function LogTags({
     }
   };
 
+  useEffect(() => {
+    setOptimisticTags(currentTags);
+  }, [currentTags]);
+
   return (
     <div className='flex flex-wrap items-center gap-1.5 mt-3 mb-1'>
       {optimisticTags.map((val) => (

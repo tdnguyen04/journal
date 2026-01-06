@@ -99,3 +99,26 @@ export async function getConnectionStatus() {
     pendingToken: prefs?.connectToken || null // The code (if they haven't used it yet)
   };
 }
+
+export async function updateCustomTags(newTags: string[]) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) return { success: false, message: 'Unauthorized' };
+
+  try {
+    await prisma.userPreferences.update({
+      where: { userId: user.id },
+      data: { customValues: newTags },
+    });
+    
+    // Refresh both pages so the new tags appear immediately
+    revalidatePath('/home');
+    revalidatePath('/settings');
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Failed to update tags:', error);
+    return { success: false, message: 'Failed to update tags' };
+  }
+}

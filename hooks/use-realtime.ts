@@ -12,7 +12,7 @@ export function useRealtime(table: 'logs' | 'user_preferences') {
   useEffect(() => {
     // 1. Subscribe to the table
     const channel = supabase
-      .channel('realtime-db-changes')
+      .channel(`realtime-${table}`)
       .on(
         'postgres_changes',
         {
@@ -22,7 +22,7 @@ export function useRealtime(table: 'logs' | 'user_preferences') {
         },
         (payload) => {
           // 2. When a change happens, "Soft Refresh" the server components
-          console.log('⚡ Realtime change detected:', payload);
+          console.log(`⚡ Realtime change detected on ${table}:`, payload);
           console.log(payload.eventType);
           if (payload.eventType === 'INSERT') {
             toast.success('New entry received via Telegram');

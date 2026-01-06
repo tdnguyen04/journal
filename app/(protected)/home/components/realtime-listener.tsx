@@ -4,5 +4,6 @@ import { useRealtime } from '@/hooks/use-realtime';
 
 export function RealtimeLogListener() {
   useRealtime('logs'); // Listen for new logs
+  useRealtime('user_preferences');
   return null; // It renders nothing visually
 }
