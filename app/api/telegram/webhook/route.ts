@@ -24,6 +24,28 @@ export async function POST(req: Request) {
   const chatId = body.message.chat.id.toString();
   const text = body.message.text.trim();
 
+  // 1. FIRST: Check for /logout (Before checking if user exists)
+  if (text === '/logout') {
+    // Only disconnect if they are actually connected
+    const userToDisconnect = await prisma.userPreferences.findUnique({
+      where: { telegramChatId: chatId },
+    });
+
+    if (userToDisconnect) {
+      await prisma.userPreferences.update({
+        where: { id: userToDisconnect.id },
+        data: { telegramChatId: null },
+      });
+      await sendMessage(
+        chatId,
+        '🔌 Disconnected. You can connect a new account via the website.',
+      );
+    } else {
+      await sendMessage(chatId, 'You are not connected.');
+    }
+    return NextResponse.json({ ok: true });
+  }
+
   // 2. CHECK: Is this user already linked?
   const existingUser = await prisma.userPreferences.findUnique({
     where: { telegramChatId: chatId },
@@ -35,7 +57,10 @@ export async function POST(req: Request) {
 
     if (!token) {
       if (existingUser) {
-        await sendMessage(chatId, `Welcome back, ${existingUser.userName}! Just type your log.`);
+        await sendMessage(
+          chatId,
+          `Welcome back, ${existingUser.userName}! Just type your log.`,
+        );
       } else {
         await sendMessage(
           chatId,
@@ -95,4 +120,8 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true });
   }
+
+  await sendMessage(chatId, "Please connect your account first via the website.");
+  
+  return NextResponse.json({ ok: true });
 }

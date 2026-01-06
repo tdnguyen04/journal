@@ -9,6 +9,7 @@ export default async function Navbar() {
     <NavbarWrapper>
       <div className='flex gap-5 items-center font-semibold'>
         <Link href={'/'}>{process.env.APP_NAME}</Link>
+        <Link href={'/settings'}>Settings</Link>
       </div>
       <Suspense>
         <AuthButton />

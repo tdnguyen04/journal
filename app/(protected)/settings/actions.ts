@@ -80,3 +80,22 @@ export async function generateConnectionToken() {
     return { success: false, message: 'Failed to generate token' };
   }
 }
+
+export async function getConnectionStatus() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { isConnected: false, pendingToken: null };
+
+  const prefs = await prisma.userPreferences.findUnique({
+    where: { userId: user.id },
+    select: { 
+      telegramChatId: true, 
+      connectToken: true 
+    }
+  });
+
+  return {
+    isConnected: !!prefs?.telegramChatId, // True if they have a Chat ID
+    pendingToken: prefs?.connectToken || null // The code (if they haven't used it yet)
+  };
+}
