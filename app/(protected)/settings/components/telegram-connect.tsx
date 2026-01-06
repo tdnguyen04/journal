@@ -9,10 +9,19 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Send, Check, Copy, Loader2, CheckCircle2 } from 'lucide-react';
-import { generateConnectionToken } from '../actions';
+import {
+  Send,
+  Loader2,
+  CheckCircle2,
+  RefreshCw,
+  LogOut,
+  HelpCircle,
+  Smartphone,
+} from 'lucide-react';
+import { disconnectTelegram, generateConnectionToken } from '../actions';
 import { toast } from 'sonner';
 import { TelegramDebugButton } from './telegram-debug-button';
+import { cn } from '@/lib/utils';
 
 interface ConnectionStatus {
   isConnected: boolean;
@@ -27,7 +36,11 @@ export function TelegramConnect({
   const [token, setToken] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(initialStatus.isConnected);
   const [isLoading, setIsLoading] = useState(false);
-  const BOT_USERNAME = 'MyLifeLog_bot';
+
+  // Toggle for the "Techy" stuff
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  const BOT_USERNAME = 'MyLifeLog_bot'; // Replace with your actual bot username
 
   useEffect(() => {
     setIsConnected(initialStatus.isConnected);
@@ -47,67 +60,132 @@ export function TelegramConnect({
     }
   };
 
+  const handleCancel = () => {
+    setToken(null);
+  };
+
+  const handleDisconnect = async () => {
+    if (
+      !confirm(
+        "Are you sure you want to disconnect? You won't be able to log via Telegram until you reconnect.",
+      )
+    )
+      return;
+
+    setIsLoading(true);
+    const result = await disconnectTelegram();
+    setIsLoading(false);
+
+    if (result.success) {
+      setIsConnected(false);
+      setToken(null);
+      toast.success('Disconnected from Telegram');
+    } else {
+      toast.error('Failed to disconnect');
+    }
+  };
+
   return (
-    <Card className='mt-6 border-slate-200 dark:border-slate-800'>
+    <Card className='mt-6 border-slate-200 dark:border-slate-800 shadow-sm'>
       <CardHeader>
-        <CardTitle className='flex items-center gap-2'>
-          <Send className='h-5 w-5 text-blue-500' />
+        <CardTitle className='flex items-center gap-2 text-lg'>
           <Send
-            className={`h-5 w-5 ${isConnected ? 'text-green-500' : 'text-blue-500'}`}
+            className={cn(
+              'h-5 w-5',
+              isConnected ? 'text-green-500' : 'text-blue-500',
+            )}
           />
           {isConnected ? 'Telegram Connected' : 'Connect Telegram'}
         </CardTitle>
         <CardDescription>
           {isConnected
-            ? 'Your account is linked. You can log habits directly from the chat.'
-            : 'Log your habits directly from your phone without opening the app.'}
+            ? 'Your account is linked. Open Telegram to start logging.'
+            : 'Log your habits quickly from your phone without opening this app.'}
         </CardDescription>
       </CardHeader>
-      <CardContent>
+
+      <CardContent className='space-y-6'>
         {isConnected ? (
-          <div className='flex items-center gap-3 p-4 bg-green-50 dark:bg-green-900/10 text-green-700 dark:text-green-400 rounded-lg border border-green-200 dark:border-green-900/20'>
-            <CheckCircle2 className='h-5 w-5 shrink-0' />
-            <div className='text-sm font-medium'>
-              System operational. Chat bot is active.
+          // ================= SUCCESS STATE =================
+          <div className='flex items-center justify-between p-4 bg-green-50/50 dark:bg-green-900/10 rounded-xl border border-green-100 dark:border-green-900/20'>
+            <div className='flex items-center gap-3'>
+              <div className='h-10 w-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400'>
+                <CheckCircle2 className='h-5 w-5' />
+              </div>
+              <div>
+                <p className='text-sm font-medium text-green-900 dark:text-green-300'>
+                  Active & Ready
+                </p>
+                <p className='text-xs text-green-700 dark:text-green-500'>
+                  The bot is listening for your logs.
+                </p>
+              </div>
             </div>
+
+            <Button
+              variant='ghost'
+              size='sm'
+              onClick={handleDisconnect}
+              disabled={isLoading}
+              className='text-muted-foreground hover:text-destructive hover:bg-destructive/10'
+            >
+              <LogOut className='mr-2 h-4 w-4' />
+              Disconnect
+            </Button>
           </div>
         ) : (
+          // ================= CONNECT STATE =================
           <>
             {!token ? (
-              <Button onClick={handleGenerate} disabled={isLoading}>
-                {isLoading && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
+              <Button
+                onClick={handleGenerate}
+                disabled={isLoading}
+                className='w-full sm:w-auto'
+              >
+                {isLoading ? (
+                  <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                ) : (
+                  <Smartphone className='mr-2 h-4 w-4' />
+                )}
                 Generate Connection Code
               </Button>
             ) : (
-              <div className='space-y-4 animate-in fade-in slide-in-from-top-2'>
-                <div className='p-4 bg-slate-100 dark:bg-slate-900 rounded-lg text-center'>
-                  <p className='text-sm text-muted-foreground mb-1'>
-                    Your Connection Code
-                  </p>
-                  <div className='text-3xl font-mono font-bold tracking-wider text-blue-600 dark:text-blue-400'>
-                    {token}
-                  </div>
-                  <div className='text-sm space-y-2 text-muted-foreground'>
-                    <p>1. Click here to open the bot:</p>
-                    <a
-                      href={`https://t.me/${BOT_USERNAME}?start=${token}`}
-                      target='_blank'
-                      rel='noopener noreferrer'
-                      className='block w-full py-2 bg-blue-600 text-white text-center rounded-md font-medium hover:bg-blue-700 transition-colors'
-                    >
-                      Open Telegram & Connect
-                    </a>
-                    {/* The link above automatically passes the start token! */}
-                  </div>
+              <div className='space-y-6 animate-in fade-in slide-in-from-top-2'>
+                {/* 1. Primary Action: The Deep Link */}
+                <div className='p-1 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-md hover:shadow-lg transition-shadow'>
+                  <a
+                    href={`https://t.me/${BOT_USERNAME}?start=${token}`}
+                    target='_blank'
+                    rel='noopener noreferrer'
+                    className='flex items-center justify-center gap-2 w-full py-3 bg-white dark:bg-slate-950 rounded-[4px] text-blue-600 font-semibold hover:bg-blue-50 dark:hover:bg-slate-900 transition-colors'
+                  >
+                    <Send className='w-4 h-4' />
+                    Open Telegram to Connect
+                  </a>
                 </div>
 
-                <div className='text-sm space-y-2 text-muted-foreground'>
-                  <p>
-                    1. Open your bot on Telegram:{' '}
-                    <strong>@MyLifeLog_bot</strong> (Use your bot name)
+                {/* 2. Secondary Action: Manual Code */}
+                <div className='rounded-lg border border-dashed border-slate-300 dark:border-slate-700 p-4'>
+                  <div className='flex items-center justify-between mb-2'>
+                    <span className='text-xs font-medium text-muted-foreground uppercase tracking-wider'>
+                      Manual Option
+                    </span>
+                    <Button
+                      variant='ghost'
+                      size='sm'
+                      onClick={handleCancel}
+                      className='h-6 px-2 text-xs text-muted-foreground hover:text-destructive'
+                    >
+                      <RefreshCw className='mr-1.5 h-3 w-3' />
+                      Reset Code
+                    </Button>
+                  </div>
+
+                  <p className='text-sm text-muted-foreground mb-2'>
+                    If the button above doesn't work, send this to{' '}
+                    <strong>@{BOT_USERNAME}</strong>:
                   </p>
-                  <p>2. Send the message:</p>
-                  <code className='block p-2 bg-slate-100 dark:bg-slate-900 rounded text-xs select-all'>
+                  <code className='block w-full p-2 bg-slate-100 dark:bg-slate-900 rounded text-center font-mono text-sm font-bold tracking-wide select-all'>
                     /start {token}
                   </code>
                 </div>
@@ -115,10 +193,31 @@ export function TelegramConnect({
             )}
           </>
         )}
+
+        {/* ================= TROUBLESHOOTING TOGGLE ================= */}
+        <div className='pt-4 border-t border-slate-100 dark:border-slate-800'>
+          <button
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className='flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors'
+          >
+            <HelpCircle className='h-3 w-3' />
+            {showAdvanced
+              ? 'Hide Troubleshooting'
+              : 'Having trouble connecting?'}
+          </button>
+
+          {/* Hidden Techy Stuff */}
+          {showAdvanced && (
+            <div className='mt-4 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-lg animate-in fade-in zoom-in-95 duration-200'>
+              <p className='text-xs text-muted-foreground mb-3'>
+                Use these tools if the bot isn't responding or if you changed
+                your website URL.
+              </p>
+              <TelegramDebugButton />
+            </div>
+          )}
+        </div>
       </CardContent>
-      <div className='px-6 pb-4 pt-0'>
-        <TelegramDebugButton />
-      </div>
     </Card>
   );
 }

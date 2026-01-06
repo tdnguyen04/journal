@@ -122,3 +122,26 @@ export async function updateCustomTags(newTags: string[]) {
     return { success: false, message: 'Failed to update tags' };
   }
 }
+
+export async function disconnectTelegram() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) return { success: false, message: 'Unauthorized' };
+
+  try {
+    await prisma.userPreferences.update({
+      where: { userId: user.id },
+      data: { 
+        telegramChatId: null, 
+        connectToken: null // Clear any pending tokens too
+      },
+    });
+
+    revalidatePath('/settings');
+    return { success: true };
+  } catch (error) {
+    console.error("Disconnect error:", error);
+    return { success: false, message: 'Failed to disconnect' };
+  }
+}
