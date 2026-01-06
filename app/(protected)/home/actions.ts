@@ -193,3 +193,37 @@ export async function analyzeLog(id: string) {
     return { success: false, message: `Analysis failed: ${error.message}` };
   }
 }
+
+export async function toggleLogTag(logId: string, tag: string) {
+  try {
+    const log = await prisma.log.findUnique({
+      where: { id: logId },
+      select: { tagValues: true }
+    });
+
+    if (!log) return { success: false, message: "Log not found" };
+
+    const currentTags = log.tagValues || [];
+    let newTags;
+
+    if (currentTags.includes(tag)) {
+      // REMOVE IT
+      newTags = currentTags.filter(t => t !== tag);
+    } else {
+      // ADD IT (Prevent duplicates just in case)
+      newTags = [...currentTags, tag];
+    }
+
+    await prisma.log.update({
+      where: { id: logId },
+      data: { tagValues: newTags }
+    });
+
+    revalidatePath('/home'); // Refresh the UI
+    return { success: true, message: "Updated" };
+
+  } catch (error) {
+    console.error("Tag update failed:", error);
+    return { success: false, message: "Failed to update tag" };
+  }
+}

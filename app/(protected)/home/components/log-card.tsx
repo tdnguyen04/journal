@@ -20,17 +20,25 @@ import {
   Brain,
   EyeOff,
   Eye,
+  Tag as TagIcon,
+  Plus,
 } from 'lucide-react';
 import { Log } from '@/app/generated/prisma/client';
 import DeleteButton from './delete-button';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
-import { analyzeLog, updateLog } from '../actions';
+import { analyzeLog, toggleLogTag, updateLog } from '../actions';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import ReactMarkdown from 'react-markdown';
 import { Analysis } from '@/lib/validations/analysis';
 import { AnalysisView } from './analysis-view';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface LogCardProps {
   log: any;
@@ -46,6 +54,14 @@ const formatDate = (dateString: string | Date) => {
     second: '2-digit',
   });
 };
+
+const AVAILABLE_TAGS = [
+  'Health',
+  'Learning',
+  'Connection',
+  'Deep Work',
+  'Growth',
+];
 
 export default function LogCard({ log, onDelete }: LogCardProps) {
   const [isExiting, setIsExiting] = useState(false);
@@ -98,6 +114,14 @@ export default function LogCard({ log, onDelete }: LogCardProps) {
   const hasAnalysis = !!analysisData;
 
   const [isRevealed, setIsRevealed] = useState(!log.isRedacted);
+
+  const handleTagToggle = async (tag: string) => {
+    // Optimistic UI could go here, but for now we'll wait for server
+    const result = await toggleLogTag(log.id, tag);
+    if (!result.success) {
+      // alert or toast error
+    }
+  };
 
   return (
     <Card
@@ -283,18 +307,58 @@ export default function LogCard({ log, onDelete }: LogCardProps) {
               </div>
             )}
 
-            {log.tagValues && log.tagValues.length > 0 && (
-              <div className='flex flex-wrap gap-1.5 mt-3 mb-1'>
-                {log.tagValues.map((val: string) => (
+            <div className='flex flex-wrap items-center gap-1.5 mt-3 mb-1'>
+              {/* A. EXISTING TAGS */}
+              {log.tagValues &&
+                log.tagValues.map((val: string) => (
                   <span
                     key={val}
-                    className='inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 ring-1 ring-inset ring-blue-700/10'
+                    className='group inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 ring-1 ring-inset ring-blue-700/10 transition-all hover:pr-1 cursor-default'
                   >
                     #{val}
+                    {/* Remove Button (Visible on hover) */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation(); // Prevent card click
+                        handleTagToggle(val);
+                      }}
+                      className='w-0 overflow-hidden group-hover:w-4 group-hover:ml-1 transition-all duration-200 text-blue-500 hover:text-blue-700 dark:text-blue-400'
+                    >
+                      <X size={12} />
+                    </button>
                   </span>
                 ))}
-              </div>
-            )}
+
+              {/* B. ADD TAG BUTTON (Dropdown) */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className='inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 transition-colors'
+                    title='Add Tag'
+                  >
+                    <Plus size={12} />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align='start' className='w-32'>
+                  {AVAILABLE_TAGS.map((tag) => {
+                    const isSelected = log.tagValues?.includes(tag);
+                    return (
+                      <DropdownMenuItem
+                        key={tag}
+                        onClick={() => handleTagToggle(tag)}
+                        className='text-xs flex justify-between cursor-pointer'
+                        disabled={isSelected} // Optional: disable if already added
+                      >
+                        {tag}
+                        {isSelected && (
+                          <TagIcon size={10} className='ml-2 opacity-50' />
+                        )}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
 
             {/* Footer ID (Subtle) */}
             <div className='mt-2 text-[10px] text-muted-foreground uppercase tracking-widest'>
