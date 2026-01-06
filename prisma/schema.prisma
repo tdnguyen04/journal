@@ -28,6 +28,7 @@ model UserPreferences {
   connectToken   String?  @unique
   telegramChatId String?  @unique
   userName       String?
+  customValues   String[] @default(["Health", "Learning", "Connection", "Deep Work"])
 
   @@map("user_preferences")
 }
