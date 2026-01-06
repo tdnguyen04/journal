@@ -107,6 +107,8 @@ export default function LogCard({ log, onDelete }: LogCardProps) {
         isExiting
           ? 'translate-x-full opacity-0 bg-destructive/10 border-destructive'
           : 'translate-x-0 opacity-100 hover:bg-muted/50',
+
+        'animate-in fade-in slide-in-from-top-4 duration-500',
       )}
     >
       <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
