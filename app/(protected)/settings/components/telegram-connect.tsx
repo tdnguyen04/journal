@@ -12,6 +12,7 @@ import {
 import { Send, Check, Copy, Loader2, CheckCircle2 } from 'lucide-react';
 import { generateConnectionToken } from '../actions';
 import { toast } from 'sonner';
+import { TelegramDebugButton } from './telegram-debug-button';
 
 interface ConnectionStatus {
   isConnected: boolean;
@@ -115,6 +116,9 @@ export function TelegramConnect({
           </>
         )}
       </CardContent>
+      <div className='px-6 pb-4 pt-0'>
+        <TelegramDebugButton />
+      </div>
     </Card>
   );
 }
