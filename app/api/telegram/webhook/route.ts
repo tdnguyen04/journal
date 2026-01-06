@@ -115,7 +115,7 @@ export async function POST(req: Request) {
       // Personalize the reply
       await sendMessage(chatId, `📝 Saved, ${displayName}!`);
     } catch (e) {
-      await sendMessage(chatId, 'Error saving log.');
+      await sendMessage(chatId, `Error saving log.${e}`);
     }
 
     return NextResponse.json({ ok: true });
