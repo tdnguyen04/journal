@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -26,6 +26,11 @@ export function TelegramConnect({
   const [token, setToken] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(initialStatus.isConnected);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    setIsConnected(initialStatus.isConnected);
+    setToken(initialStatus.pendingToken);
+  }, [initialStatus]);
 
   const handleGenerate = async () => {
     setIsLoading(true);
