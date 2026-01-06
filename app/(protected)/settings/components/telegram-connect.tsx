@@ -26,6 +26,7 @@ export function TelegramConnect({
   const [token, setToken] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(initialStatus.isConnected);
   const [isLoading, setIsLoading] = useState(false);
+  const BOT_USERNAME = 'MyLifeLog_bot';
 
   useEffect(() => {
     setIsConnected(initialStatus.isConnected);
@@ -84,6 +85,18 @@ export function TelegramConnect({
                   </p>
                   <div className='text-3xl font-mono font-bold tracking-wider text-blue-600 dark:text-blue-400'>
                     {token}
+                  </div>
+                  <div className='text-sm space-y-2 text-muted-foreground'>
+                    <p>1. Click here to open the bot:</p>
+                    <a
+                      href={`https://t.me/${BOT_USERNAME}?start=${token}`}
+                      target='_blank'
+                      rel='noopener noreferrer'
+                      className='block w-full py-2 bg-blue-600 text-white text-center rounded-md font-medium hover:bg-blue-700 transition-colors'
+                    >
+                      Open Telegram & Connect
+                    </a>
+                    {/* The link above automatically passes the start token! */}
                   </div>
                 </div>
 

@@ -118,7 +118,11 @@ async function handleStart(chatId: string, text: string, existingUser: any) {
     where: { connectToken: token },
   });
   if (!pendingUser) {
-    await sendMessage(chatId, 'Invalid or expired code.');
+    if (existingUser) {
+       await sendMessage(chatId, "You are already connected! Just start typing.");
+    } else {
+       await sendMessage(chatId, 'Invalid or expired code.');
+    }
     return;
   }
 
