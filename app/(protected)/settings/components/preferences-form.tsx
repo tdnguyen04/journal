@@ -15,7 +15,6 @@ export function PreferencesForm() {
   const [isLoadingInitial, setIsLoadingInitial] = useState(true);
 
   useEffect(() => {
-    // Load existing preferences on mount
     const loadPreferences = async () => {
       try {
         const existingPreferences = await getPreferences();
@@ -28,30 +27,18 @@ export function PreferencesForm() {
         setIsLoadingInitial(false);
       }
     };
-
     loadPreferences();
   }, []);
 
   const handleSave = async () => {
-    if (!preferences.trim()) {
-      toast.error('Preferences cannot be empty', {
-        description: 'Please enter your preferences.',
-      });
-      return;
-    }
-
     setIsLoading(true);
     const result = await savePreferences(preferences);
     setIsLoading(false);
 
     if (result.success) {
-      toast.success('Preferences saved', {
-        description: 'Your preferences have been saved successfully.',
-      });
+      toast.success('Preferences saved');
     } else {
-      toast.error('Failed to save preferences', {
-        description: result.message || 'Please try again later.',
-      });
+      toast.error('Failed to save preferences');
     }
   };
 
@@ -72,16 +59,16 @@ export function PreferencesForm() {
       <CardHeader>
         <CardTitle>Your Preferences</CardTitle>
         <CardDescription>
-          Describe what you care about tracking in your journal. For example: &quot;I care about gym stats (weight/reps), my mood, and how many pages I read&quot;
+          Describe what you care about tracking. The AI will look for these specific details.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="preferences">Preferences</Label>
+          <Label htmlFor="preferences">Instructions</Label>
           <Textarea
             id="preferences"
-            placeholder="I care about gym stats (weight/reps), my mood, and how many pages I read"
-            className="min-h-[120px] resize-none"
+            placeholder="e.g. I care about gym stats (weight/reps), my mood (1-10), and hours of sleep."
+            className="min-h-[120px] resize-none font-mono text-sm"
             value={preferences}
             onChange={(e) => setPreferences(e.target.value)}
             onKeyDown={(e) => {
@@ -94,19 +81,12 @@ export function PreferencesForm() {
         </div>
 
         <div className="flex justify-end">
-          <Button onClick={handleSave} disabled={isLoading || !preferences.trim()}>
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              'Save Preferences'
-            )}
+          <Button onClick={handleSave} disabled={isLoading}>
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Save Preferences
           </Button>
         </div>
       </CardContent>
     </Card>
   );
 }
-

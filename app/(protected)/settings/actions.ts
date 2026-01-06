@@ -1,72 +1,82 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
-import prisma from '@/lib/prisma/prisma';
 import { createClient } from '@/lib/supabase/server';
-import { PreferencesSchema } from './schemas';
+import prisma from '@/lib/prisma/prisma';
+import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
 
-export type ActionState = {
-  success: boolean;
-  message: string;
-};
+const Schema = z.object({
+  preferences: z.string().max(5000),
+});
 
-export async function savePreferences(preferences: string): Promise<ActionState> {
+export async function savePreferences(rawInput: string) {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user) {
-    return { success: false, message: 'Unauthorized' };
-  }
+  if (!user) return { success: false, message: 'Unauthorized' };
 
-  // Validate input
-  const parsed = PreferencesSchema.safeParse({ preferences });
-
-  if (!parsed.success) {
-    return { success: false, message: 'Preferences cannot be empty' };
-  }
+  const parsed = Schema.safeParse({ preferences: rawInput });
+  if (!parsed.success) return { success: false, message: 'Invalid input' };
 
   try {
-    // Upsert preferences (create or update)
     await prisma.userPreferences.upsert({
       where: { userId: user.id },
-      update: {
-        preferences: parsed.data.preferences,
-      },
-      create: {
+      update: { preferences: parsed.data.preferences },
+      create: { 
         userId: user.id,
-        preferences: parsed.data.preferences,
+        preferences: parsed.data.preferences 
       },
     });
 
     revalidatePath('/settings');
-    return { success: true, message: 'Preferences saved successfully' };
+    return { success: true, message: 'Settings saved' };
   } catch (error) {
-    console.error('Failed to save preferences:', error);
     return { success: false, message: 'Database error' };
   }
 }
 
-export async function getPreferences(): Promise<string | null> {
+export async function getPreferences() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
 
-  if (!user) {
-    return null;
-  }
-
-  try {
-    const userPreferences = await prisma.userPreferences.findUnique({
-      where: { userId: user.id },
-    });
-
-    return userPreferences?.preferences || null;
-  } catch (error) {
-    console.error('Failed to get preferences:', error);
-    return null;
-  }
+  const prefs = await prisma.userPreferences.findUnique({
+    where: { userId: user.id },
+  });
+  
+  return prefs?.preferences || '';
 }
 
+export async function generateConnectionToken() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) return { success: false, message: 'Unauthorized' };
+
+  // Generate a 6-digit code
+  const token = Math.floor(100000 + Math.random() * 900000).toString();
+  
+  // Grab the name from Supabase to "Snapshot" it for the bot
+  const name = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || "Friend";
+
+  try {
+    await prisma.userPreferences.upsert({
+      where: { userId: user.id },
+      update: { 
+        connectToken: token,
+        userName: name // Update name cache
+      },
+      create: { 
+        userId: user.id, 
+        connectToken: token,
+        userName: name,
+        preferences: "" // Prevent null error
+      },
+    });
+
+    return { success: true, token };
+  } catch (error) {
+    console.error("Token Gen Error:", error);
+    return { success: false, message: 'Failed to generate token' };
+  }
+}

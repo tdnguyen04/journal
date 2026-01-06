@@ -21,15 +21,3 @@ model Log {
 
   @@map("logs")
 }
-
-model UserPreferences {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId    String   @unique @db.Uuid
-  preferences String @db.Text
-  telegramChatId String?  @unique // The Telegram User ID
-  connectToken   String?  @unique // A temporary code to link accounts
-  createdAt DateTime @default(now()) @db.Timestamptz
-  updatedAt DateTime @updatedAt @db.Timestamptz
-
-  @@map("user_preferences")
-}
