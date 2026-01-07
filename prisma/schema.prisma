@@ -15,6 +15,18 @@ model Log {
   isRedacted Boolean  @default(false) // True if they typed /redacted
   tagValues  String[] @default([]) // Stores ["Empathy", "Growth"]
 
+  // TIME BLOCKING
+  startedAt DateTime  @default(now()) @db.Timestamptz(6)
+  endedAt   DateTime? @db.Timestamptz(6)
+  duration  Int? // Minutes
+
+  // CONVERSATION STATE
+  telegramChallengeId   String? @unique
+  telegramChallengeType String? // "GAP_CONFIRM", "GAP_DURATION", "GAP_NAME"
+
+  // DATA HYGIENE
+  isGapFill Boolean @default(false)
+
   @@map("logs")
 }
 
@@ -28,7 +40,11 @@ model UserPreferences {
   connectToken   String?  @unique
   telegramChatId String?  @unique
   userName       String?
+  // DEPRECATED: We keep this for now so we don't break your existing UI immediately
   customValues   String[] @default(["Health", "Learning", "Connection", "Deep Work"])
+
+  // Stores [{ name: "Learning", isGrowth: true }, ...]
+  tags           Json?    @default("[]")
 
   @@map("user_preferences")
 }
