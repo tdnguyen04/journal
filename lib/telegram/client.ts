@@ -81,3 +81,15 @@ export async function answerCallback(callbackId: string) {
     console.error('Ack failed', e);
   }
 }
+
+export async function sendTypingAction(chatId: string) {
+  try {
+    await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendChatAction`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, action: 'typing' }),
+    });
+  } catch (e) {
+    console.error('Typing Action Failed', e);
+  }
+}

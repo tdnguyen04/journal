@@ -5,6 +5,7 @@ import {
   handleCallback,
   handleLogEntry,
   handleLogout,
+  handleReply,
   handleStart,
 } from '@/lib/telegram/handlers';
 
@@ -23,6 +24,12 @@ export async function POST(req: Request) {
 
     const chatId = body.message.chat.id.toString();
     const text = body.message.text.trim();
+
+    // Handle replies (User answering to challenge from bot)
+    if (body.message.reply_to_message) {
+      await handleReply(body.message);
+      return NextResponse.json({ ok: true });
+    }
 
     // 2. ROUTE: Commands
     if (text === '/logout') {

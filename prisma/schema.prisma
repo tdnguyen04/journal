@@ -27,6 +27,11 @@ model Log {
   // DATA HYGIENE
   isGapFill Boolean @default(false)
 
+  // LIFECYCLE STATE (Business Logic)
+  // "COMPLETED" = trustworthy
+  // "TENTATIVE" = system assumption (time/gap guessed)
+  status      String    @default("COMPLETED")
+
   @@map("logs")
 }
 
