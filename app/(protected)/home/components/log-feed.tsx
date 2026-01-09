@@ -1,20 +1,22 @@
 import { getLogs } from '../data';
-import LogCard from './log-card';
-import LogList from './log-list';
 import { LogViewToggle } from './log-view-toggle';
-import { TimelineView } from './timeline-view';
 
 interface LogFeedProps {
-  query: string;
-  availableTags: string[]; // <--- Receive the tags here
+  weekParam?: string;
+  availableTags: string[];
 }
 
-export default async function LogFeed({ query, availableTags }: LogFeedProps) {
-  const logs = await getLogs(query);
-  if (logs.length == 0) {
-    return <div>No log found</div>;
+export default async function LogFeed({ weekParam, availableTags }: LogFeedProps) {
+  const logs = await getLogs(weekParam);
+  
+  if (logs.length === 0) {
+    return (
+      <div className="text-center py-12 text-muted-foreground">
+        <p className="text-lg">No entries this week</p>
+        <p className="text-sm mt-1">Start logging via Telegram or use the button above</p>
+      </div>
+    );
   }
-  // return <LogList logs={logs} availableTags={availableTags} />;
-  // return <TimelineView logs={logs} />;
+
   return <LogViewToggle logs={logs} availableTags={availableTags} />;
 }

@@ -3,50 +3,40 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import prisma from '@/lib/prisma/prisma';
+import { startOfWeek, endOfWeek, parseISO } from 'date-fns';
 
-export async function getLogs(query: string = '') {
+/**
+ * Get logs for a specific week
+ * @param weekParam - ISO date string for the week start (e.g., "2026-01-06")
+ *                    If not provided, defaults to current week
+ */
+export async function getLogs(weekParam?: string) {
   const supabase = await createClient();
   const {
     data: { user },
     error,
   } = await supabase.auth.getUser();
+  
   if (error || !user) {
     redirect('/auth/login');
   }
 
-  const allLogs = await prisma.log.findMany({
-    where: { userId: user.id },
+  // Calculate week boundaries
+  const targetDate = weekParam ? parseISO(weekParam) : new Date();
+  const weekStart = startOfWeek(targetDate, { weekStartsOn: 1 }); // Monday
+  const weekEnd = endOfWeek(targetDate, { weekStartsOn: 1 }); // Sunday
+
+  // Fetch logs for this week only (database-level filtering)
+  const logs = await prisma.log.findMany({
+    where: {
+      userId: user.id,
+      createdAt: {
+        gte: weekStart,
+        lte: weekEnd,
+      },
+    },
     orderBy: { createdAt: 'desc' },
   });
 
-  if (!query) {
-    return allLogs;
-  }
-
-  const lowerQuery = query.toLowerCase();
-
-  return allLogs.filter((log) => {
-    // 1. Check Content (The Note)
-    const contentText =
-      typeof log.content === 'string'
-        ? log.content
-        : (log.content as any)?.note || '';
-
-    const matchesContent = contentText.toLowerCase().includes(lowerQuery);
-
-    // 2. Check Date (The Timestamp)
-    // We format it loosely so "Jan", "January 5", or "2025" all work
-    const date = new Date(log.createdAt);
-    const dateString = date.toLocaleDateString('en-US', {
-      weekday: 'long', // "Monday"
-      month: 'long', // "January"
-      day: 'numeric', // "5"
-      year: 'numeric', // "2025"
-    });
-
-    const matchesDate = dateString.toLowerCase().includes(lowerQuery);
-
-    // Return true if EITHER matches
-    return matchesContent || matchesDate;
-  });
+  return logs;
 }
