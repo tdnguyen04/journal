@@ -21,7 +21,21 @@ export async function handleCallback(query: any) {
     const [_, logId, valueToAdd] = parts;
 
     try {
-      const currentLog = await prisma.log.findUnique({ where: { id: logId } });
+      // Get the user linked to this chatId
+      const user = await prisma.userPreferences.findUnique({
+        where: { telegramChatId: chatId },
+        select: { userId: true }
+      });
+
+      if (!user) {
+        await sendMessage(chatId, '⚠️ Please connect your account first.');
+        return;
+      }
+
+      // Fetch log with ownership verification
+      const currentLog = await prisma.log.findUnique({ 
+        where: { id: logId, userId: user.userId }  // ← Ownership check
+      });
 
       if (currentLog) {
         const currentTags = currentLog.tagValues || [];
@@ -29,8 +43,9 @@ export async function handleCallback(query: any) {
           ? currentTags
           : [...currentTags, valueToAdd];
 
-        await prisma.log.update({
-          where: { id: logId },
+        // Update with ownership check (defense in depth)
+        await prisma.log.updateMany({
+          where: { id: logId, userId: user.userId },
           data: { tagValues: updatedTags },
         });
 

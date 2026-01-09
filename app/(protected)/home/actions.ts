@@ -195,13 +195,19 @@ export async function analyzeLog(id: string) {
 }
 
 export async function toggleLogTag(logId: string, tag: string) {
+  // Auth check
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, message: 'Unauthorized' };
+
   try {
+    // Fetch log with ownership check
     const log = await prisma.log.findUnique({
-      where: { id: logId },
+      where: { id: logId, userId: user.id },  // ← Ownership verification
       select: { tagValues: true }
     });
 
-    if (!log) return { success: false, message: "Log not found" };
+    if (!log) return { success: false, message: "Log not found or unauthorized" };
 
     const currentTags = log.tagValues || [];
     let newTags;
@@ -214,12 +220,13 @@ export async function toggleLogTag(logId: string, tag: string) {
       newTags = [...currentTags, tag];
     }
 
-    await prisma.log.update({
-      where: { id: logId },
+    // Update with ownership check (defense in depth)
+    await prisma.log.updateMany({
+      where: { id: logId, userId: user.id },
       data: { tagValues: newTags }
     });
 
-    revalidatePath('/home'); // Refresh the UI
+    revalidatePath('/home');
     return { success: true, message: "Updated" };
 
   } catch (error) {
