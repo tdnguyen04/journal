@@ -17,7 +17,7 @@ export interface LogContent {
  */
 export function getLogNote(log: Log): string {
   if (typeof log.content === 'string') return log.content;
-  return (log.content as LogContent)?.note || '';
+  return (log.content as unknown as LogContent)?.note || '';
 }
 
 /**
