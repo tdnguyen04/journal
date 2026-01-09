@@ -5,6 +5,7 @@ import {
   handleCallback,
   handleLogEntry,
   handleLogout,
+  handleNote,
   handleReply,
   handleStart,
 } from '@/lib/telegram/handlers';
@@ -34,6 +35,23 @@ export async function POST(req: Request) {
     // 2. ROUTE: Commands
     if (text === '/logout') {
       await handleLogout(chatId);
+      return NextResponse.json({ ok: true });
+    }
+
+    if (text.startsWith('/note ')) {
+      const noteText = text.slice(6).trim(); // Remove "/note "
+      if (noteText) {
+        const user = await prisma.userPreferences.findUnique({
+          where: { telegramChatId: chatId },
+        });
+        if (user) {
+          await handleNote(chatId, noteText, user);
+        } else {
+          await sendMessage(chatId, 'Please connect your account first via the website.');
+        }
+      } else {
+        await sendMessage(chatId, 'Usage: /note Your thought here');
+      }
       return NextResponse.json({ ok: true });
     }
 

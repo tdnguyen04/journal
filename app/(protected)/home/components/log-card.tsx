@@ -16,6 +16,7 @@ import {
   Plus,
   MoreHorizontal,
   Trash2,
+  Paperclip,
 } from 'lucide-react';
 import { Log } from '@/app/generated/prisma/client';
 import { cn } from '@/lib/utils';
@@ -39,6 +40,7 @@ interface LogCardProps {
   log: any;
   onDelete: () => void;
   availableTags: string[];
+  parentTask?: any; // Task that this note was created during
 }
 
 /**
@@ -53,6 +55,7 @@ export default function LogCard({
   log,
   onDelete,
   availableTags,
+  parentTask,
 }: LogCardProps) {
   const [isExiting, setIsExiting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -242,6 +245,20 @@ export default function LogCard({
             /* Normal content */
             <div className='text-sm prose prose-neutral dark:prose-invert max-w-none prose-p:my-0 prose-p:leading-normal'>
               <ReactMarkdown>{displayContent}</ReactMarkdown>
+            </div>
+          )}
+
+          {/* "During task" indicator for notes */}
+          {parentTask && (
+            <div className='flex items-center gap-1.5 mt-2 text-[10px] text-muted-foreground'>
+              <Paperclip className='w-3 h-3' />
+              <span>
+                During:{' '}
+                <span className='font-medium text-foreground/70'>
+                  {((parentTask.content as any)?.note || 'task').slice(0, 30)}
+                  {((parentTask.content as any)?.note || '').length > 30 ? '...' : ''}
+                </span>
+              </span>
             </div>
           )}
 

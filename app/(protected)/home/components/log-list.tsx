@@ -11,6 +11,32 @@ interface LogListProps {
   availableTags: string[];
 }
 
+/**
+ * Check if a log is a Task Report (has duration from Telegram flow)
+ */
+function isTaskReport(log: Log): boolean {
+  return log.duration !== null && log.duration > 0;
+}
+
+/**
+ * Find the parent task for a note (if note.createdAt falls within task's time range)
+ */
+function findParentTask(note: Log, allLogs: Log[]): Log | undefined {
+  if (isTaskReport(note)) return undefined;
+  
+  const noteTime = new Date(note.createdAt).getTime();
+  
+  return allLogs.find((log) => {
+    if (!isTaskReport(log)) return false;
+    if (!log.startedAt || !log.endedAt) return false;
+    
+    const taskStart = new Date(log.startedAt).getTime();
+    const taskEnd = new Date(log.endedAt).getTime();
+    
+    return noteTime >= taskStart && noteTime <= taskEnd;
+  });
+}
+
 export default function LogList({ logs: initialLogs, availableTags }: LogListProps) {
   // This hook automatically animates any element added or removed from this parent
   const [parent] = useAutoAnimate();
@@ -22,6 +48,18 @@ export default function LogList({ logs: initialLogs, availableTags }: LogListPro
   useEffect(() => {
     setLogs(initialLogs);
   }, [initialLogs]);
+
+  // Compute parent task relationships for notes
+  const parentTaskMap = useMemo(() => {
+    const map = new Map<string, Log>();
+    logs.forEach((log) => {
+      const parent = findParentTask(log, logs);
+      if (parent) {
+        map.set(log.id, parent);
+      }
+    });
+    return map;
+  }, [logs]);
 
   // --- 1. THE GROUPING ENGINE ---
   const groupedLogs = useMemo(() => {
@@ -94,6 +132,7 @@ export default function LogList({ logs: initialLogs, availableTags }: LogListPro
                 log={log}
                 onDelete={() => handleDelete(log.id)}
                 availableTags={availableTags}
+                parentTask={parentTaskMap.get(log.id)}
               />
             ))}
           </div>

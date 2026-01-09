@@ -283,9 +283,41 @@ export async function handleReply(message: any) {
     }
   }
 }
-// --- 2. LOG ENTRY (The Gap Checker) ---
+// --- 2. HANDLE NOTE (Fleeting Thought - no time tracking) ---
+export async function handleNote(chatId: string, text: string, user: any) {
+  console.log(`[Telegram] 📝 New Note: "${text}"`);
+
+  await sendTypingAction(chatId);
+
+  try {
+    await prisma.log.create({
+      data: {
+        userId: user.userId,
+        content: { note: text },
+        // No startedAt, endedAt, duration - this is a fleeting thought
+        status: 'COMPLETED',
+      },
+    });
+
+    await sendMessage(chatId, `📝 Note saved.`);
+  } catch (e) {
+    console.error(`[Telegram] 💥 Note DB Error:`, e);
+    await sendMessage(chatId, '⚠️ Database Error.');
+  }
+}
+
+// --- 3. LOG ENTRY (The Gap Checker) ---
 export async function handleLogEntry(chatId: string, text: string, user: any) {
-  console.log(`[Telegram] 📥 New Log Request: "${text}"`);
+  // Check for quick chain prefix ">"
+  const isQuickChain = text.startsWith('>');
+  const logText = isQuickChain ? text.slice(1).trim() : text;
+
+  if (isQuickChain && !logText) {
+    await sendMessage(chatId, 'Usage: > Your task description');
+    return;
+  }
+
+  console.log(`[Telegram] 📥 New Log Request: "${logText}" (Quick chain: ${isQuickChain})`);
 
   // 1. SIGNAL: "Typing..."
   await sendTypingAction(chatId);
@@ -311,16 +343,23 @@ export async function handleLogEntry(chatId: string, text: string, user: any) {
     );
   }
 
-  // Implicit Chain Rule (< 15 mins)
+  // Quick chain OR Implicit Chain Rule (< 15 mins)
   const isImplicitChain =
     gapMinutes >= 0 && gapMinutes <= 15 && lastLog?.endedAt;
-  const implicitStart = isImplicitChain ? lastLog!.endedAt! : now;
-  const initialStatus =
-    !isImplicitChain && gapMinutes > 15 ? 'TENTATIVE' : 'COMPLETED';
+  const shouldChain = isQuickChain || isImplicitChain;
+  const chainStart = shouldChain && lastLog?.endedAt ? lastLog.endedAt : now;
+  
+  // Quick chain always completes, implicit chain completes, gap > 15 is tentative
+  const initialStatus = shouldChain ? 'COMPLETED' : (gapMinutes > 15 ? 'TENTATIVE' : 'COMPLETED');
 
   console.log(
-    `[Telegram] 💾 Saving Log. Status: ${initialStatus}. Start: ${implicitStart.toISOString()}`,
+    `[Telegram] 💾 Saving Log. Status: ${initialStatus}. Start: ${chainStart.toISOString()}`,
   );
+
+  // Calculate duration if chaining
+  const duration = shouldChain && lastLog?.endedAt
+    ? Math.round((now.getTime() - lastLog.endedAt.getTime()) / 60000)
+    : null;
 
   // 4. SAVE TO DB
   let newLog;
@@ -328,9 +367,10 @@ export async function handleLogEntry(chatId: string, text: string, user: any) {
     newLog = await prisma.log.create({
       data: {
         userId: user.userId,
-        content: { note: text },
-        startedAt: implicitStart,
+        content: { note: logText },
+        startedAt: chainStart,
         endedAt: now,
+        duration: duration,
         status: initialStatus,
       },
     });
@@ -356,7 +396,7 @@ export async function handleLogEntry(chatId: string, text: string, user: any) {
 
     const msg = await sendMessage(
       chatId,
-      `📝 Saved "${text}".\n\nIt's been ${durationStr} since **"${lastNoteDisplay}"** (${lastTime}).\n\nDid you start this immediately after?`,
+      `📝 Saved "${logText}".\n\nIt's been ${durationStr} since **"${lastNoteDisplay}"** (${lastTime}).\n\nDid you start this immediately after?`,
       { force_reply: true, input_field_placeholder: 'Yes or No' },
     );
 
@@ -371,27 +411,27 @@ export async function handleLogEntry(chatId: string, text: string, user: any) {
       });
       console.log(`[Telegram] ✅ Challenge Active. Log ID: ${newLog.id}`);
     } else {
-      // THIS IS YOUR "3 FAILURES" HANDLING
       console.error(
         `[Telegram] 🚨 CRITICAL: Message failed after retries. Log ${newLog.id} remains TENTATIVE/UNCONFIRMED.`,
       );
-      // Note: We do NOT delete the log. We keep it as TENTATIVE.
-      // The user will see it in the dashboard later.
     }
   } else {
-    // IMPLICIT SUCCESS
-    console.log(`[Telegram] ✅ Implicit Chain. Sending success message.`);
+    // SUCCESS (Quick chain or implicit chain)
+    console.log(`[Telegram] ✅ Chain complete. Sending success message.`);
     let extraInfo = '';
-    if (isImplicitChain && lastLog) {
+    
+    if (shouldChain && lastLog) {
       const lastNote = (lastLog.content as any)?.note || 'task';
       const timeStr = lastLog.endedAt!.toLocaleTimeString([], {
         hour: '2-digit',
         minute: '2-digit',
       });
-      extraInfo = ` Started at ${timeStr} (after "${lastNote.substring(0, 15)}...").`;
+      const durationStr = duration ? `${duration}m` : '';
+      extraInfo = isQuickChain 
+        ? ` Chained from ${timeStr}${durationStr ? ` (${durationStr})` : ''}.`
+        : ` Started at ${timeStr} (after "${lastNote.substring(0, 15)}...").`;
     }
 
-    // We don't await this strictly for flow control, but good to catch errors
     await sendMessage(chatId, `✅ Saved.${extraInfo}`);
   }
 }
