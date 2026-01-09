@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { 
@@ -11,7 +11,6 @@ import {
   format, 
   parseISO,
   isThisWeek,
-  isSameWeek
 } from 'date-fns';
 
 interface WeekNavigatorProps {
@@ -20,6 +19,7 @@ interface WeekNavigatorProps {
 
 export default function WeekNavigator({ currentWeek }: WeekNavigatorProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   
   // Parse the current week or default to now
   const targetDate = currentWeek ? parseISO(currentWeek) : new Date();
@@ -28,41 +28,49 @@ export default function WeekNavigator({ currentWeek }: WeekNavigatorProps) {
   
   const isCurrentWeek = isThisWeek(weekStart, { weekStartsOn: 1 });
   
+  // Preserve view param when navigating
+  const currentView = searchParams.get('view');
+  
   // Format the week range for display
   const formatWeekRange = () => {
-    const startMonth = format(weekStart, 'MMM d');
-    const endMonth = format(weekEnd, 'MMM d, yyyy');
-    
     // If same month, show "Jan 6 - 12, 2026"
     if (weekStart.getMonth() === weekEnd.getMonth()) {
       return `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'd, yyyy')}`;
     }
     // Different months, show "Dec 30 - Jan 5, 2026"
-    return `${startMonth} - ${endMonth}`;
+    return `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}`;
   };
 
-  const navigateToWeek = (date: Date) => {
-    const weekStartDate = startOfWeek(date, { weekStartsOn: 1 });
-    const weekParam = format(weekStartDate, 'yyyy-MM-dd');
+  const buildUrl = (weekDate: Date | null) => {
+    const params = new URLSearchParams();
     
-    // If navigating to current week, remove the param for cleaner URL
-    if (isThisWeek(weekStartDate, { weekStartsOn: 1 })) {
-      router.push('/home');
-    } else {
-      router.push(`/home?week=${weekParam}`);
+    // Add week param if not current week
+    if (weekDate) {
+      const weekStartDate = startOfWeek(weekDate, { weekStartsOn: 1 });
+      if (!isThisWeek(weekStartDate, { weekStartsOn: 1 })) {
+        params.set('week', format(weekStartDate, 'yyyy-MM-dd'));
+      }
     }
+    
+    // Preserve view param
+    if (currentView) {
+      params.set('view', currentView);
+    }
+    
+    const queryString = params.toString();
+    return `/home${queryString ? `?${queryString}` : ''}`;
   };
 
   const goToPrevWeek = () => {
-    navigateToWeek(subWeeks(weekStart, 1));
+    router.push(buildUrl(subWeeks(weekStart, 1)));
   };
 
   const goToNextWeek = () => {
-    navigateToWeek(addWeeks(weekStart, 1));
+    router.push(buildUrl(addWeeks(weekStart, 1)));
   };
 
   const goToToday = () => {
-    router.push('/home');
+    router.push(buildUrl(null));
   };
 
   return (

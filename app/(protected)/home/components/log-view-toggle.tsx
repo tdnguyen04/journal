@@ -1,19 +1,37 @@
 'use client';
 
-import { useState } from 'react';
-import { LayoutList, CalendarDays } from 'lucide-react'; // Assuming you have lucide-react, or use text
+import { useRouter, useSearchParams } from 'next/navigation';
+import { LayoutList, CalendarDays } from 'lucide-react';
 import LogList from './log-list';
 import { TimelineView } from './timeline-view';
 
 interface LogViewToggleProps {
-  logs: any[]; // Replace 'any' with your actual Log/Prisma type
+  logs: any[];
   availableTags: string[];
 }
 
 type ViewMode = 'list' | 'timeline';
 
 export function LogViewToggle({ logs, availableTags }: LogViewToggleProps) {
-  const [view, setView] = useState<ViewMode>('list');
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  // Read view from URL, default to 'list'
+  const view = (searchParams.get('view') as ViewMode) || 'list';
+  
+  const setView = (newView: ViewMode) => {
+    const params = new URLSearchParams(searchParams.toString());
+    
+    if (newView === 'list') {
+      // Remove view param for default (cleaner URL)
+      params.delete('view');
+    } else {
+      params.set('view', newView);
+    }
+    
+    const queryString = params.toString();
+    router.push(`/home${queryString ? `?${queryString}` : ''}`);
+  };
 
   return (
     <div className="flex flex-col gap-4">
