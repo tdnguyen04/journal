@@ -190,8 +190,8 @@ export default function LogCard({
         isTask 
           ? 'bg-primary/[0.03] border-primary/20' 
           : 'bg-card border-border',
-        // Exit animation
-        isExiting && 'translate-x-full opacity-0 bg-destructive/10 border-destructive',
+        // Exit animation - scale down + fade instead of translate (avoids horizontal scroll)
+        isExiting && 'scale-95 opacity-0 bg-destructive/10 border-destructive',
         !isExiting && 'hover:shadow-sm',
         'animate-in fade-in slide-in-from-top-2 duration-300',
       )}
