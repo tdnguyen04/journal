@@ -5,17 +5,11 @@ import LogCard from './log-card';
 import { Log } from '@/app/generated/prisma/client';
 import { useEffect, useMemo, useState } from 'react';
 import { deleteLog } from '../actions';
+import { isTaskReport } from '@/lib/helpers/log';
 
 interface LogListProps {
   logs: Log[];
   availableTags: string[];
-}
-
-/**
- * Check if a log is a Task (has time tracking from Telegram flow)
- */
-function isTaskReport(log: Log): boolean {
-  return log.startedAt !== null;
 }
 
 /**

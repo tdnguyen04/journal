@@ -10,6 +10,7 @@ import {
   CornerDownRight,
 } from 'lucide-react';
 import { format, differenceInMinutes, isSameDay } from 'date-fns';
+import { isTaskReport } from '@/lib/helpers/log';
 
 interface TimelineViewProps {
   logs: Log[];
@@ -18,18 +19,6 @@ interface TimelineViewProps {
 // Extended log type with computed parent task relationship
 interface LogWithParent extends Log {
   parentTask?: Log;
-}
-
-// =============================================================================
-// HELPERS: Log Type Detection
-// =============================================================================
-
-/**
- * Task Reports have time tracking (from Telegram time-blocking flow)
- * Fleeting Thoughts have no startedAt (quick web entries or /note)
- */
-function isTaskReport(log: Log): boolean {
-  return log.startedAt !== null;
 }
 
 /**

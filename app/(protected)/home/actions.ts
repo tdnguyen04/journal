@@ -34,7 +34,7 @@ export async function createLog(
   }
 
   try {
-    // 2. Database Write
+    // 2. Database Write - Note has no time tracking
     await prisma.log.create({
       data: {
         userId: user.id,
@@ -43,6 +43,10 @@ export async function createLog(
           note: parsed.data.content,
           timestamp: new Date().toISOString(),
         },
+        // Notes have no endedAt/duration (distinguishes from tasks)
+        // startedAt uses default, but endedAt being null marks this as a note
+        endedAt: null,
+        duration: null,
       },
     });
 

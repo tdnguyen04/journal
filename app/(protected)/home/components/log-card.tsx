@@ -17,6 +17,7 @@ import {
   MoreHorizontal,
   Trash2,
   Paperclip,
+  AlertCircle,
 } from 'lucide-react';
 import { Log } from '@/app/generated/prisma/client';
 import { cn } from '@/lib/utils';
@@ -35,20 +36,13 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
+import { isTaskReport } from '@/lib/helpers/log';
 
 interface LogCardProps {
   log: any;
   onDelete: () => void;
   availableTags: string[];
   parentTask?: any; // Task that this note was created during
-}
-
-/**
- * Detect if log is a Task (has time tracking from Telegram)
- * Notes created via browser or /note command have no startedAt
- */
-function isTaskReport(log: any): boolean {
-  return log.startedAt !== null;
 }
 
 export default function LogCard({
@@ -181,15 +175,18 @@ export default function LogCard({
 
   // Normal compact view
   const isTask = isTaskReport(log);
+  const isPending = log.status === 'TENTATIVE';
   
   return (
     <div
       className={cn(
         'group relative rounded-lg border transition-all duration-300 overflow-hidden',
         // Task vs Note visual distinction
-        isTask 
-          ? 'bg-primary/[0.03] border-primary/20' 
-          : 'bg-card border-border',
+        isTask && !isPending && 'bg-primary/[0.03] border-primary/20',
+        // Pending task - amber/yellow styling
+        isTask && isPending && 'bg-amber-50/50 border-amber-300 dark:bg-amber-900/10 dark:border-amber-700',
+        // Note styling
+        !isTask && 'bg-card border-border',
         // Exit animation - scale down + fade instead of translate (avoids horizontal scroll)
         isExiting && 'scale-95 opacity-0 bg-destructive/10 border-destructive',
         !isExiting && 'hover:shadow-sm',
@@ -198,7 +195,10 @@ export default function LogCard({
     >
       {/* Left accent bar for tasks */}
       {isTask && (
-        <div className='absolute left-0 top-0 bottom-0 w-1 bg-primary/60' />
+        <div className={cn(
+          'absolute left-0 top-0 bottom-0 w-1',
+          isPending ? 'bg-amber-500' : 'bg-primary/60'
+        )} />
       )}
       
       {/* Main row - timestamp + content + actions */}
@@ -220,6 +220,15 @@ export default function LogCard({
             <span className='text-xs text-muted-foreground whitespace-nowrap'>
               {formatTimeOnly(log.createdAt)}
             </span>
+          )}
+          {/* Pending indicator */}
+          {isPending && (
+            <div className='flex items-center justify-end gap-1 mt-1'>
+              <span className='inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 dark:text-amber-400'>
+                <AlertCircle className='w-3 h-3' />
+                Pending
+              </span>
+            </div>
           )}
         </div>
 

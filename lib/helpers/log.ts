@@ -21,11 +21,25 @@ export function getLogNote(log: Log): string {
 }
 
 /**
- * Task Reports have duration (from Telegram time-blocking flow)
- * Fleeting Thoughts have no duration (quick web entries)
+ * Determine if a log is a Task (has time tracking) vs a Note (fleeting thought)
+ * 
+ * Tasks are created via Telegram text messages and have:
+ * - startedAt: when the task began
+ * - endedAt: when the task was logged (always set for tasks)
+ * - duration: calculated time in minutes
+ * 
+ * Notes are created via:
+ * - Browser "Log your progress..." dialog
+ * - Telegram /note command
+ * Notes have NO time tracking fields (startedAt, endedAt, duration are null)
+ * 
+ * We check endedAt because:
+ * - Old notes have startedAt set (Prisma default) but endedAt is null
+ * - New notes have all time fields null
+ * - Tasks ALWAYS have endedAt set
  */
 export function isTaskReport(log: Log): boolean {
-  return log.duration !== null && log.duration > 0;
+  return log.endedAt !== null;
 }
 
 /**

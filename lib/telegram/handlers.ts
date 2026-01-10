@@ -167,7 +167,7 @@ async function finalizeStaleLogs(userId: string, chatId: string) {
       );
       await sendMessage(
         chatId,
-        `⚠️ Previous log "${note}" was abandoned.\nMarked as **Tentative** (Assumed start: ${timeStr}).`,
+        `⚠️ Previous log "${note}" was abandoned.\nSaved as quick task (start: ${timeStr}).`,
       );
     } catch (e) {
       console.error(`[Telegram] ❌ Failed to send cleanup message:`, e);
@@ -295,7 +295,10 @@ export async function handleNote(chatId: string, text: string, user: any) {
       data: {
         userId: user.userId,
         content: { note: text },
-        // No startedAt, endedAt, duration - this is a fleeting thought
+        // Notes have no endedAt/duration (distinguishes from tasks)
+        // startedAt uses default, but endedAt being null marks this as a note
+        endedAt: null,
+        duration: null,
         status: 'COMPLETED',
       },
     });
