@@ -12,10 +12,10 @@ interface LogListProps {
 }
 
 /**
- * Check if a log is a Task Report (has duration from Telegram flow)
+ * Check if a log is a Task (has time tracking from Telegram flow)
  */
 function isTaskReport(log: Log): boolean {
-  return log.duration !== null && log.duration > 0;
+  return log.startedAt !== null;
 }
 
 /**

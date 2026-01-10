@@ -143,13 +143,14 @@ async function finalizeStaleLogs(userId: string, chatId: string) {
       `[Telegram] ⚠️ Found stale log "${staleLog.id}". Cleaning up...`,
     );
 
-    // 1. Close DB State
+    // 1. Close DB State - assume quick task when skipped
     await prisma.log.update({
       where: { id: staleLog.id },
       data: {
         telegramChallengeId: null,
         telegramChallengeType: null,
-        status: 'TENTATIVE',
+        status: 'COMPLETED',
+        duration: 0,
       },
     });
 
@@ -359,7 +360,7 @@ export async function handleLogEntry(chatId: string, text: string, user: any) {
   // Calculate duration if chaining
   const duration = shouldChain && lastLog?.endedAt
     ? Math.round((now.getTime() - lastLog.endedAt.getTime()) / 60000)
-    : null;
+    : 0;
 
   // 4. SAVE TO DB
   let newLog;

@@ -44,11 +44,11 @@ interface LogCardProps {
 }
 
 /**
- * Detect if log is a Task Report (has duration from Telegram)
- * vs Fleeting Thought (quick note from web)
+ * Detect if log is a Task (has time tracking from Telegram)
+ * Notes created via browser or /note command have no startedAt
  */
 function isTaskReport(log: any): boolean {
-  return log.duration !== null && log.duration > 0;
+  return log.startedAt !== null;
 }
 
 export default function LogCard({

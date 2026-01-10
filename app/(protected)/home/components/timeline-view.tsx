@@ -25,11 +25,11 @@ interface LogWithParent extends Log {
 // =============================================================================
 
 /**
- * Task Reports have duration (from Telegram time-blocking flow)
- * Fleeting Thoughts have no duration (quick web entries)
+ * Task Reports have time tracking (from Telegram time-blocking flow)
+ * Fleeting Thoughts have no startedAt (quick web entries or /note)
  */
 function isTaskReport(log: Log): boolean {
-  return log.duration !== null && log.duration > 0;
+  return log.startedAt !== null;
 }
 
 /**
