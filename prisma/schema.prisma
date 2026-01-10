@@ -58,5 +58,8 @@ model UserPreferences {
   // User's preferred timezone for Telegram bot time display (e.g., "America/New_York")
   timezone       String   @default("America/New_York")
 
+  // Gap threshold (minutes) before asking about time - user configurable
+  autoChainMinutes Int @default(15)
+
   @@map("user_preferences")
 }
