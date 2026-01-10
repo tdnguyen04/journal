@@ -2,9 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Globe, Check } from 'lucide-react';
+import { Loader2, Globe, Check, ChevronDown } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { saveTimezone, getTimezone } from '../actions';
 import { toast } from 'sonner';
 
@@ -52,7 +59,7 @@ const TIMEZONE_GROUPS = {
   ],
 };
 
-// Format timezone for display (e.g., "America/New_York" -> "New York (UTC-5)")
+// Format timezone for display (e.g., "America/New_York" -> "New York (GMT-5)")
 function formatTimezone(tz: string): string {
   try {
     const now = new Date();
@@ -106,8 +113,8 @@ export function TimezoneSelector() {
     return (
       <Card>
         <CardContent className="pt-6">
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <div className="flex items-center justify-center py-4">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
         </CardContent>
       </Card>
@@ -116,46 +123,46 @@ export function TimezoneSelector() {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Globe className="h-5 w-5" />
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Globe className="h-4 w-4" />
           Timezone
         </CardTitle>
-        <CardDescription>
-          Set your timezone for Telegram bot time displays.
+        <CardDescription className="text-xs">
+          For Telegram bot time displays
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-3">
-          <Label>Current: <span className="font-mono text-primary">{formatTimezone(timezone)}</span></Label>
-          
-          <div className="max-h-[300px] overflow-y-auto border rounded-lg p-2 space-y-4">
-            {Object.entries(TIMEZONE_GROUPS).map(([region, zones]) => (
+      <CardContent>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="w-full justify-between" disabled={isLoading}>
+              <span className="font-medium">{formatTimezone(timezone)}</span>
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ChevronDown className="h-4 w-4 opacity-50" />
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-64 max-h-[300px] overflow-y-auto">
+            {Object.entries(TIMEZONE_GROUPS).map(([region, zones], idx) => (
               <div key={region}>
-                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 px-2">
-                  {region}
-                </div>
-                <div className="space-y-1">
-                  {zones.map((tz) => (
-                    <button
-                      key={tz}
-                      onClick={() => handleSave(tz)}
-                      disabled={isLoading}
-                      className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors flex items-center justify-between ${
-                        timezone === tz 
-                          ? 'bg-primary/10 text-primary font-medium' 
-                          : 'hover:bg-muted'
-                      }`}
-                    >
-                      <span>{formatTimezone(tz)}</span>
-                      {timezone === tz && <Check className="h-4 w-4" />}
-                    </button>
-                  ))}
-                </div>
+                {idx > 0 && <DropdownMenuSeparator />}
+                <DropdownMenuLabel className="text-xs">{region}</DropdownMenuLabel>
+                {zones.map((tz) => (
+                  <DropdownMenuItem
+                    key={tz}
+                    onClick={() => handleSave(tz)}
+                    className="flex items-center justify-between"
+                  >
+                    <span>{formatTimezone(tz)}</span>
+                    {timezone === tz && <Check className="h-4 w-4" />}
+                  </DropdownMenuItem>
+                ))}
               </div>
             ))}
-          </div>
-        </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </CardContent>
     </Card>
   );
