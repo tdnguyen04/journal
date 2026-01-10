@@ -77,7 +77,7 @@ function formatTimezone(tz: string): string {
 }
 
 export function TimezoneSelector() {
-  const [timezone, setTimezone] = useState('UTC');
+  const [timezone, setTimezone] = useState('America/New_York');
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingInitial, setIsLoadingInitial] = useState(true);
 

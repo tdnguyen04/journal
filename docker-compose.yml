@@ -1,0 +1,17 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres:16
+    container_name: journal_db
+    environment:
+      POSTGRES_USER: journal
+      POSTGRES_PASSWORD: journal_dev
+      POSTGRES_DB: journal
+    ports:
+      - "5432:5432"
+    volumes:
+      - journal_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  journal_data:

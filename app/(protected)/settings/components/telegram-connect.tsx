@@ -40,7 +40,7 @@ export function TelegramConnect({
   // Toggle for the "Techy" stuff
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  const BOT_USERNAME = 'MyLifeLog_bot'; // Replace with your actual bot username
+  const BOT_USERNAME = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'MyLifeLog_bot';
 
   useEffect(() => {
     setIsConnected(initialStatus.isConnected);

@@ -177,7 +177,7 @@ export async function getTimezone() {
     select: { timezone: true }
   });
   
-  return prefs?.timezone || 'UTC';
+  return prefs?.timezone || 'America/New_York';
 }
 
 export async function saveTimezone(timezone: string) {

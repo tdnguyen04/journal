@@ -455,7 +455,7 @@ export async function handleLogEntry(chatId: string, text: string, user: any) {
   }
 }
 
-function formatFriendlyDate(date: Date, timezone: string = 'UTC'): string {
+function formatFriendlyDate(date: Date, timezone: string = 'America/New_York'): string {
   const now = new Date();
   
   // Format dates in user's timezone for comparison
@@ -488,5 +488,5 @@ async function getUserTimezone(userId: string): Promise<string> {
     where: { userId },
     select: { timezone: true },
   });
-  return prefs?.timezone || 'UTC';
+  return prefs?.timezone || 'America/New_York';
 }
