@@ -38,39 +38,48 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
+    // Check user connection for commands that need it
+    const existingUser = await prisma.userPreferences.findUnique({
+      where: { telegramChatId: chatId },
+    });
+
+    const notConnectedMsg = "I don't recognize you yet! Open the app → Settings → Connect Telegram to link your account.";
+
     if (text === '/help') {
-      await sendMessage(
-        chatId,
-        "📖 **How to use this bot**\n\n" +
-        "**Log a task** (with time tracking)\n" +
-        "Just type what you did:\n" +
-        "→ Finished the report\n" +
-        "→ 30 min gym session\n\n" +
-        "**Quick chain** (connects to last task)\n" +
-        "Start with >\n" +
-        "→ > Team meeting\n\n" +
-        "**Quick note** (no time tracking)\n" +
-        "/note Your thought here\n" +
-        "→ /note Remember to call mom\n\n" +
-        "**Commands**\n" +
-        "/help - Show this message\n" +
-        "/logout - Disconnect account"
-      );
+      if (!existingUser) {
+        await sendMessage(chatId, notConnectedMsg);
+      } else {
+        await sendMessage(
+          chatId,
+          "📖 **How to use this bot**\n\n" +
+          "**Log a task** (with time tracking)\n" +
+          "Just type what you did:\n" +
+          "→ Finished the report\n" +
+          "→ 30 min gym session\n\n" +
+          "**Quick chain** (connects to last task)\n" +
+          "Start with >\n" +
+          "→ > Team meeting\n\n" +
+          "**Quick note** (no time tracking)\n" +
+          "/note Your thought here\n" +
+          "→ /note Remember to call mom\n\n" +
+          "**Commands**\n" +
+          "/help - Show this message\n" +
+          "/logout - Disconnect account"
+        );
+      }
       return NextResponse.json({ ok: true });
     }
 
     // Handle /note with or without content
     if (text === '/note' || text.startsWith('/note ')) {
+      if (!existingUser) {
+        await sendMessage(chatId, notConnectedMsg);
+        return NextResponse.json({ ok: true });
+      }
+      
       const noteText = text === '/note' ? '' : text.slice(6).trim();
       if (noteText) {
-        const user = await prisma.userPreferences.findUnique({
-          where: { telegramChatId: chatId },
-        });
-        if (user) {
-          await handleNote(chatId, noteText, user);
-        } else {
-          await sendMessage(chatId, "I don't recognize you yet! Open the app → Settings → Connect Telegram to link your account.");
-        }
+        await handleNote(chatId, noteText, existingUser);
       } else {
         await sendMessage(chatId, "What's the thought? Try:\n/note Feeling productive today");
       }
@@ -78,10 +87,6 @@ export async function POST(req: Request) {
     }
 
     // 3. ROUTE: Connection Handshake
-    // We check user *before* passing to handlers to save DB calls if not needed
-    const existingUser = await prisma.userPreferences.findUnique({
-      where: { telegramChatId: chatId },
-    });
 
     if (text.startsWith('/start')) {
       await handleStart(chatId, text, existingUser);
