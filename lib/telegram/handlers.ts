@@ -6,7 +6,7 @@ import {
   answerCallback,
   sendTypingAction,
 } from './client';
-import { parseDurationWithAI, generateGapCheckIn } from './ai';
+import { parseDurationWithAI, generateGapCheckIn, summarizeTask, generateNoteAck } from './ai';
 
 // --- BUTTON CLICKS (Tagging + Gap Handling) ---
 export async function handleCallback(query: any) {
@@ -413,7 +413,9 @@ export async function handleNote(chatId: string, text: string, user: any) {
       },
     });
 
-    await sendMessage(chatId, `📝 Got it! Saved as a quick note.`);
+    // Generate personalized acknowledgment based on note content
+    const ack = await generateNoteAck(text);
+    await sendMessage(chatId, ack);
   } catch (e) {
     console.error(`[Telegram] 💥 Note DB Error:`, e);
     await sendMessage(chatId, 'Hmm, something went wrong. Try again in a moment?');
@@ -501,7 +503,8 @@ export async function handleLogEntry(chatId: string, text: string, user: any) {
   if (initialStatus === 'TENTATIVE') {
     // Get context for AI message
     const lastNote = (lastLog?.content as any)?.note || 'your last task';
-    const lastNoteDisplay = lastNote.length > 25 ? lastNote.substring(0, 25) + '...' : lastNote;
+    // Use full text if short, or AI-summarized if long (no truncation with ...)
+    const lastNoteDisplay = await summarizeTask(lastNote);
     const gapDurationStr = formatGapDuration(gapMinutes);
     const timeOfDay = getTimeOfDay(now, timezone);
     
@@ -560,20 +563,22 @@ export async function handleLogEntry(chatId: string, text: string, user: any) {
     console.log(`[Telegram] ✅ Chain complete. Sending success message.`);
     
     if (shouldChain && lastLog) {
-      const timeStr = lastLog.endedAt!.toLocaleTimeString('en-US', {
-        hour: '2-digit',
+      const lastNote = (lastLog.content as any)?.note || 'previous task';
+      const lastNoteDisplay = lastNote.length > 30 ? lastNote.substring(0, 30) + '...' : lastNote;
+      const startTimeStr = lastLog.endedAt!.toLocaleTimeString('en-US', {
+        hour: 'numeric',
         minute: '2-digit',
         timeZone: timezone,
       });
       const durationStr = duration ? `${duration}m` : '';
-      const msg = isQuickChain 
-        ? `✅ Logged! ${durationStr} task from ${timeStr}.`
-        : `✅ Logged! ${durationStr} task starting at ${timeStr}.`;
+      
+      // Informative message: show previous task, duration, and hint about settings
+      const msg = `✅ Logged! ${durationStr} task chained from "${lastNoteDisplay}" (${startTimeStr}).\n\nAuto-chain threshold: ${autoChainMinutes}m. Adjust in Settings.`;
       await sendMessage(chatId, msg);
     } else {
       // First task or no chain
       const timeStr = now.toLocaleTimeString('en-US', {
-        hour: '2-digit',
+        hour: 'numeric',
         minute: '2-digit',
         timeZone: timezone,
       });
