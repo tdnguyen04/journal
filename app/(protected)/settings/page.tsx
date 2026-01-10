@@ -3,6 +3,7 @@ import { getConnectionStatus } from './actions';
 import { PreferencesForm } from './components/preferences-form';
 import { SettingsListener } from './components/settings-listener';
 import { TelegramConnect } from './components/telegram-connect';
+import { TimezoneSelector } from './components/timezone-selector';
 import prisma from '@/lib/prisma/prisma';
 import { TagManager } from './components/tag-manager';
 
@@ -39,7 +40,12 @@ export default async function SettingsPage() {
         <TelegramConnect initialStatus={status} />
       </section>
 
-      {/* 3. Custom Tag Manager */}
+      {/* 3. Timezone */}
+      <section className='space-y-4 pt-6 border-t'>
+        <TimezoneSelector />
+      </section>
+
+      {/* 4. Custom Tag Manager */}
       <section className='space-y-4 pt-6 border-t'>
         <div>
           <h2 className='text-lg font-semibold'>Custom Tags</h2>
