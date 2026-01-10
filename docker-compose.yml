@@ -13,5 +13,17 @@ services:
       - journal_data:/var/lib/postgresql/data
     restart: unless-stopped
 
+  # Shadow database for Prisma migrations
+  postgres_shadow:
+    image: postgres:16
+    container_name: journal_db_shadow
+    environment:
+      POSTGRES_USER: journal
+      POSTGRES_PASSWORD: journal_dev
+      POSTGRES_DB: journal_shadow
+    ports:
+      - "5433:5432"
+    restart: unless-stopped
+
 volumes:
   journal_data:
