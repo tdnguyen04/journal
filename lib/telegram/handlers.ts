@@ -156,7 +156,8 @@ async function finalizeStaleLogs(userId: string, chatId: string) {
 
     // 2. UI Cleanup (Attempt)
     const note = (staleLog.content as any)?.note || 'Log';
-    const timeStr = formatFriendlyDate(staleLog.startedAt);
+    const timezone = await getUserTimezone(userId);
+    const timeStr = formatFriendlyDate(staleLog.startedAt, timezone);
 
     // We use a try/catch here because if this fails, we don't want to crash the whole flow
     try {
@@ -264,7 +265,8 @@ export async function handleReply(message: any) {
         },
       });
 
-      const timeStr = formatFriendlyDate(newStartTime);
+      const timezone = await getUserTimezone(log.userId);
+      const timeStr = formatFriendlyDate(newStartTime, timezone);
       await sendMessage(
         chatId,
         `✅ Updated. Started at ${timeStr}.${warningMsg}`,
@@ -385,9 +387,11 @@ export async function handleLogEntry(chatId: string, text: string, user: any) {
   }
 
   // 5. DETERMINE RESPONSE
+  const timezone = await getUserTimezone(user.userId);
+  
   if (initialStatus === 'TENTATIVE') {
     // PREPARE QUESTION
-    const lastTime = formatFriendlyDate(lastLog!.endedAt!);
+    const lastTime = formatFriendlyDate(lastLog!.endedAt!, timezone);
     const lastNote = (lastLog?.content as any)?.note || 'task';
     const lastNoteDisplay =
       lastNote.length > 20 ? lastNote.substring(0, 20) + '...' : lastNote;
@@ -426,9 +430,10 @@ export async function handleLogEntry(chatId: string, text: string, user: any) {
     
     if (shouldChain && lastLog) {
       const lastNote = (lastLog.content as any)?.note || 'task';
-      const timeStr = lastLog.endedAt!.toLocaleTimeString([], {
+      const timeStr = lastLog.endedAt!.toLocaleTimeString('en-US', {
         hour: '2-digit',
         minute: '2-digit',
+        timeZone: timezone,
       });
       const durationStr = duration ? `${duration}m` : '';
       extraInfo = isQuickChain 
@@ -440,23 +445,38 @@ export async function handleLogEntry(chatId: string, text: string, user: any) {
   }
 }
 
-function formatFriendlyDate(date: Date): string {
+function formatFriendlyDate(date: Date, timezone: string = 'UTC'): string {
   const now = new Date();
-  const isToday = date.toDateString() === now.toDateString();
+  
+  // Format dates in user's timezone for comparison
+  const dateInTz = new Date(date.toLocaleString('en-US', { timeZone: timezone }));
+  const nowInTz = new Date(now.toLocaleString('en-US', { timeZone: timezone }));
+  
+  const isToday = dateInTz.toDateString() === nowInTz.toDateString();
 
   // Check if yesterday
-  const yesterday = new Date(now);
+  const yesterday = new Date(nowInTz);
   yesterday.setDate(yesterday.getDate() - 1);
-  const isYesterday = date.toDateString() === yesterday.toDateString();
+  const isYesterday = dateInTz.toDateString() === yesterday.toDateString();
 
-  const timeStr = date.toLocaleTimeString([], {
+  const timeStr = date.toLocaleTimeString('en-US', {
     hour: '2-digit',
     minute: '2-digit',
+    timeZone: timezone,
   });
 
   if (isToday) return timeStr;
   if (isYesterday) return `Yesterday ${timeStr}`;
 
   // Format: Jan 5, 9:00 PM
-  return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })}, ${timeStr}`;
+  return `${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: timezone })}, ${timeStr}`;
+}
+
+// Helper to get user timezone
+async function getUserTimezone(userId: string): Promise<string> {
+  const prefs = await prisma.userPreferences.findUnique({
+    where: { userId },
+    select: { timezone: true },
+  });
+  return prefs?.timezone || 'UTC';
 }
