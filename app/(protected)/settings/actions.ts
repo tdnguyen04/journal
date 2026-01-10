@@ -130,6 +130,27 @@ export async function disconnectTelegram() {
   if (!user) return { success: false, message: 'Unauthorized' };
 
   try {
+    // Get the chat ID before we clear it
+    const prefs = await prisma.userPreferences.findUnique({
+      where: { userId: user.id },
+      select: { telegramChatId: true },
+    });
+
+    // Notify the user in Telegram before disconnecting
+    if (prefs?.telegramChatId) {
+      try {
+        const { sendMessage } = await import('@/lib/telegram/client');
+        await sendMessage(
+          prefs.telegramChatId,
+          "🔌 You've been disconnected from this account.\n\n" +
+          "To reconnect, go to the app → Settings → Connect Telegram."
+        );
+      } catch (e) {
+        // Don't fail the disconnect if notification fails
+        console.error("Failed to send disconnect notification:", e);
+      }
+    }
+
     await prisma.userPreferences.update({
       where: { userId: user.id },
       data: { 

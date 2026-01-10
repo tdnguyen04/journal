@@ -19,9 +19,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // Validation
-    if (!body.message || !body.message.text)
+    // Handle non-text messages (photos, voice, stickers, etc.)
+    if (body.message && !body.message.text) {
+      const chatId = body.message.chat.id.toString();
+      await sendMessage(
+        chatId,
+        "I can only read text messages right now. Try typing what you did instead!"
+      );
       return NextResponse.json({ ok: true });
+    }
+
+    // No message at all - nothing to process
+    if (!body.message) return NextResponse.json({ ok: true });
 
     const chatId = body.message.chat.id.toString();
     const text = body.message.text.trim();
