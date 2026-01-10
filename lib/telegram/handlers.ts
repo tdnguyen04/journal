@@ -6,7 +6,7 @@ import {
   answerCallback,
   sendTypingAction,
 } from './client';
-import { parseDurationWithAI } from './ai';
+import { parseDurationWithAI, generateGapCheckIn } from './ai';
 
 // --- BUTTON CLICKS (Tagging) ---
 export async function handleCallback(query: any) {
@@ -338,6 +338,9 @@ export async function handleLogEntry(chatId: string, text: string, user: any) {
 
   const now = new Date();
 
+  // Get user preferences (timezone + auto-chain threshold)
+  const { timezone, autoChainMinutes } = await getUserPrefs(user.userId);
+
   // 3. CALCULATE GAPS
   const lastLog = await prisma.log.findFirst({
     where: { userId: user.userId, endedAt: { not: null } },
@@ -350,18 +353,18 @@ export async function handleLogEntry(chatId: string, text: string, user: any) {
       (now.getTime() - lastLog.endedAt.getTime()) / 60000,
     );
     console.log(
-      `[Telegram] ⏱️ Gap detected: ${gapMinutes} mins (Last log: ${lastLog.id})`,
+      `[Telegram] ⏱️ Gap detected: ${gapMinutes} mins (Last log: ${lastLog.id}, threshold: ${autoChainMinutes})`,
     );
   }
 
-  // Quick chain OR Implicit Chain Rule (< 15 mins)
+  // Quick chain OR Implicit Chain Rule (within user's threshold)
   const isImplicitChain =
-    gapMinutes >= 0 && gapMinutes <= 15 && lastLog?.endedAt;
+    gapMinutes >= 0 && gapMinutes <= autoChainMinutes && lastLog?.endedAt;
   const shouldChain = isQuickChain || isImplicitChain;
   const chainStart = shouldChain && lastLog?.endedAt ? lastLog.endedAt : now;
   
-  // Quick chain always completes, implicit chain completes, gap > 15 is tentative
-  const initialStatus = shouldChain ? 'COMPLETED' : (gapMinutes > 15 ? 'TENTATIVE' : 'COMPLETED');
+  // Quick chain always completes, implicit chain completes, gap > threshold is tentative
+  const initialStatus = shouldChain ? 'COMPLETED' : (gapMinutes > autoChainMinutes ? 'TENTATIVE' : 'COMPLETED');
 
   console.log(
     `[Telegram] 💾 Saving Log. Status: ${initialStatus}. Start: ${chainStart.toISOString()}`,
@@ -392,28 +395,49 @@ export async function handleLogEntry(chatId: string, text: string, user: any) {
   }
 
   // 5. DETERMINE RESPONSE
-  const timezone = await getUserTimezone(user.userId);
-  
   if (initialStatus === 'TENTATIVE') {
-    // PREPARE QUESTION
-    const lastTime = formatFriendlyDate(lastLog!.endedAt!, timezone);
-    const lastNote = (lastLog?.content as any)?.note || 'task';
-    const lastNoteDisplay =
-      lastNote.length > 20 ? lastNote.substring(0, 20) + '...' : lastNote;
+    // Get context for AI message
+    const lastNote = (lastLog?.content as any)?.note || 'your last task';
+    const lastNoteDisplay = lastNote.length > 25 ? lastNote.substring(0, 25) + '...' : lastNote;
+    const gapDurationStr = formatGapDuration(gapMinutes);
+    const timeOfDay = getTimeOfDay(now, timezone);
+    
+    // Count today's tasks for context
+    const startOfDay = new Date(now);
+    startOfDay.setHours(0, 0, 0, 0);
+    const taskCountToday = await prisma.log.count({
+      where: {
+        userId: user.userId,
+        endedAt: { not: null },
+        createdAt: { gte: startOfDay },
+      },
+    });
 
-    const hours = Math.floor(gapMinutes / 60);
-    const mins = gapMinutes % 60;
-    const durationStr = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+    console.log(`[Telegram] ❓ Generating AI gap check-in...`);
 
-    console.log(`[Telegram] ❓ Sending Gap Challenge...`);
+    // Generate warm AI message
+    const aiMessage = await generateGapCheckIn({
+      currentTask: logText,
+      lastTask: lastNoteDisplay,
+      gapDuration: gapDurationStr,
+      taskCountToday,
+      timeOfDay,
+    });
 
-    const msg = await sendMessage(
-      chatId,
-      `📝 Saved "${logText}".\n\nIt's been ${durationStr} since **"${lastNoteDisplay}"** (${lastTime}).\n\nDid you start this immediately after?`,
-      { force_reply: true, input_field_placeholder: 'Yes or No' },
-    );
+    // Send with inline buttons (no force_reply!)
+    const msg = await sendMessage(chatId, aiMessage, {
+      inline_keyboard: [
+        [
+          { text: 'Yes, right after', callback_data: `gap:${newLog.id}:chain` },
+          { text: 'Skip', callback_data: `gap:${newLog.id}:skip` },
+        ],
+        [
+          { text: 'Let me specify...', callback_data: `gap:${newLog.id}:specify` },
+        ],
+      ],
+    });
 
-    // CRITICAL FAILURE CHECK
+    // Track the message for callback handling
     if (msg?.result) {
       await prisma.log.update({
         where: { id: newLog.id },
@@ -422,10 +446,10 @@ export async function handleLogEntry(chatId: string, text: string, user: any) {
           telegramChallengeType: 'GAP_CONFIRM',
         },
       });
-      console.log(`[Telegram] ✅ Challenge Active. Log ID: ${newLog.id}`);
+      console.log(`[Telegram] ✅ Gap check-in sent. Log ID: ${newLog.id}`);
     } else {
       console.error(
-        `[Telegram] 🚨 CRITICAL: Message failed after retries. Log ${newLog.id} remains TENTATIVE/UNCONFIRMED.`,
+        `[Telegram] 🚨 CRITICAL: Message failed after retries. Log ${newLog.id} remains TENTATIVE.`,
       );
     }
   } else {
@@ -489,4 +513,32 @@ async function getUserTimezone(userId: string): Promise<string> {
     select: { timezone: true },
   });
   return prefs?.timezone || 'America/New_York';
+}
+
+// Helper to get user preferences for gap handling
+async function getUserPrefs(userId: string): Promise<{ timezone: string; autoChainMinutes: number }> {
+  const prefs = await prisma.userPreferences.findUnique({
+    where: { userId },
+    select: { timezone: true, autoChainMinutes: true },
+  });
+  return {
+    timezone: prefs?.timezone || 'America/New_York',
+    autoChainMinutes: prefs?.autoChainMinutes ?? 15,
+  };
+}
+
+// Helper to get time of day
+function getTimeOfDay(date: Date, timezone: string): 'morning' | 'afternoon' | 'evening' {
+  const hour = parseInt(date.toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: timezone }));
+  if (hour < 12) return 'morning';
+  if (hour < 17) return 'afternoon';
+  return 'evening';
+}
+
+// Helper to format gap duration nicely
+function formatGapDuration(minutes: number): string {
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
 }
