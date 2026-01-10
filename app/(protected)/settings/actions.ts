@@ -145,3 +145,47 @@ export async function disconnectTelegram() {
     return { success: false, message: 'Failed to disconnect' };
   }
 }
+
+export async function getTimezone() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return 'UTC';
+
+  const prefs = await prisma.userPreferences.findUnique({
+    where: { userId: user.id },
+    select: { timezone: true }
+  });
+  
+  return prefs?.timezone || 'UTC';
+}
+
+export async function saveTimezone(timezone: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) return { success: false, message: 'Unauthorized' };
+
+  // Validate timezone is a valid IANA timezone
+  try {
+    Intl.DateTimeFormat(undefined, { timeZone: timezone });
+  } catch {
+    return { success: false, message: 'Invalid timezone' };
+  }
+
+  try {
+    await prisma.userPreferences.upsert({
+      where: { userId: user.id },
+      update: { timezone },
+      create: { 
+        userId: user.id,
+        timezone 
+      },
+    });
+
+    revalidatePath('/settings');
+    return { success: true, message: 'Timezone saved' };
+  } catch (error) {
+    console.error("Timezone save error:", error);
+    return { success: false, message: 'Failed to save timezone' };
+  }
+}
