@@ -28,7 +28,7 @@ export async function handleCallback(query: any) {
       });
 
       if (!user) {
-        await sendMessage(chatId, '⚠️ Please connect your account first.');
+        await sendMessage(chatId, "I don't recognize you yet! Open the app → Settings → Connect Telegram to link your account.");
         return;
       }
 
@@ -62,7 +62,7 @@ export async function handleCallback(query: any) {
       }
     } catch (e) {
       console.error('Database Error during tagging:', e);
-      await sendMessage(chatId, '⚠️ Database Error: Could not save that tag.');
+      await sendMessage(chatId, 'Hmm, something went wrong saving that tag. Try again in a moment?');
     }
   }
 }
@@ -78,13 +78,13 @@ export async function handleLogout(chatId: string) {
         where: { id: user.id },
         data: { telegramChatId: null },
       });
-      await sendMessage(chatId, '🔌 Disconnected. Connect again via website.');
+      await sendMessage(chatId, '👋 Disconnected! Reconnect anytime from Settings.');
     } else {
-      await sendMessage(chatId, 'You are not connected.');
+      await sendMessage(chatId, "You're not connected to any account. Open the app → Settings → Connect Telegram to get started.");
     }
   } catch (e) {
     console.error('Logout DB Error', e);
-    await sendMessage(chatId, '⚠️ Database Error.');
+    await sendMessage(chatId, 'Hmm, something went wrong. Try again in a moment?');
   }
 }
 
@@ -97,8 +97,8 @@ export async function handleStart(
 
   if (!token) {
     const msg = existingUser
-      ? `Welcome back, ${existingUser.userName}! Just type your log.`
-      : 'Hi! To connect, go to your App Settings and send me the code.';
+      ? `Hey ${existingUser.userName}! 👋 Ready to track. Just type what you did and I'll log it with timestamps.`
+      : "Hi! I'm your journal bot 📓\n\nTo get started, open the app's Settings page and tap 'Connect Telegram' - I'll be ready to log your tasks!";
     await sendMessage(chatId, msg);
     return;
   }
@@ -109,8 +109,8 @@ export async function handleStart(
     });
 
     if (!pendingUser) {
-      if (existingUser) await sendMessage(chatId, 'You are already connected!');
-      else await sendMessage(chatId, 'Invalid or expired code.');
+      if (existingUser) await sendMessage(chatId, "You're already connected! Just type what you did to start logging.");
+      else await sendMessage(chatId, "That code didn't work. Try generating a new one from Settings → Connect Telegram.");
       return;
     }
 
@@ -121,11 +121,16 @@ export async function handleStart(
 
     await sendMessage(
       chatId,
-      '✅ Account connected! You can now type logs directly.',
+      "✅ Connected! Just type what you're doing and I'll track it.\n\n" +
+      "**Tips:**\n" +
+      "• Regular text = Task with time tracking\n" +
+      "• /note = Quick thought (no time)\n" +
+      "• > text = Chain to last task\n" +
+      "• /help = Show all commands",
     );
   } catch (e) {
     console.error('Start DB Error', e);
-    await sendMessage(chatId, '⚠️ Database Error.');
+    await sendMessage(chatId, 'Hmm, something went wrong. Try again in a moment?');
   }
 }
 
@@ -164,11 +169,11 @@ async function finalizeStaleLogs(userId: string, chatId: string) {
       await editMessage(
         chatId,
         parseInt(staleLog.telegramChallengeId),
-        `⚠️ Saved "${note}" (Unconfirmed).`,
+        `📌 "${note}" - saved as quick task`,
       );
       await sendMessage(
         chatId,
-        `⚠️ Previous log "${note}" was abandoned.\nSaved as quick task (start: ${timeStr}).`,
+        `📌 Saved your previous entry "${note}" as a quick task (${timeStr}).`,
       );
     } catch (e) {
       console.error(`[Telegram] ❌ Failed to send cleanup message:`, e);
@@ -217,13 +222,13 @@ export async function handleReply(message: any) {
             status: 'COMPLETED', // <--- VERIFIED!
           },
         });
-        await sendMessage(chatId, `🔗 Chained! Duration: ${duration}m`);
+        await sendMessage(chatId, `🔗 Perfect! Logged as ${duration}m task.`);
       }
     } else {
       // User said No -> Ask Duration
       const msg = await sendMessage(
         chatId,
-        "Okay. How long did this task take? (e.g. '30m', '1h')",
+        "Got it! How long did it take?\nExamples: 30m, 1h, 1h30m",
         { force_reply: true },
       );
       if (msg?.result) {
@@ -269,12 +274,12 @@ export async function handleReply(message: any) {
       const timeStr = formatFriendlyDate(newStartTime, timezone);
       await sendMessage(
         chatId,
-        `✅ Updated. Started at ${timeStr}.${warningMsg}`,
+        `✅ Logged! ${minutes}m task starting at ${timeStr}.${warningMsg}`,
       );
     } else {
       const msg = await sendMessage(
         chatId,
-        "I didn't catch that time. Try '30m'.",
+        "Hmm, I didn't catch that. Try something like:\n• 30m\n• 1h\n• 1h30m",
         { force_reply: true },
       );
       if (msg?.result) {
@@ -305,10 +310,10 @@ export async function handleNote(chatId: string, text: string, user: any) {
       },
     });
 
-    await sendMessage(chatId, `📝 Note saved.`);
+    await sendMessage(chatId, `📝 Got it! Saved as a quick note.`);
   } catch (e) {
     console.error(`[Telegram] 💥 Note DB Error:`, e);
-    await sendMessage(chatId, '⚠️ Database Error.');
+    await sendMessage(chatId, 'Hmm, something went wrong. Try again in a moment?');
   }
 }
 
@@ -319,7 +324,7 @@ export async function handleLogEntry(chatId: string, text: string, user: any) {
   const logText = isQuickChain ? text.slice(1).trim() : text;
 
   if (isQuickChain && !logText) {
-    await sendMessage(chatId, 'Usage: > Your task description');
+    await sendMessage(chatId, "After > type what you did.\nExample: > Morning standup");
     return;
   }
 
@@ -382,7 +387,7 @@ export async function handleLogEntry(chatId: string, text: string, user: any) {
     });
   } catch (e) {
     console.error(`[Telegram] 💥 DB Error:`, e);
-    await sendMessage(chatId, '⚠️ Database Error.');
+    await sendMessage(chatId, 'Hmm, something went wrong. Try again in a moment?');
     return;
   }
 
@@ -426,22 +431,27 @@ export async function handleLogEntry(chatId: string, text: string, user: any) {
   } else {
     // SUCCESS (Quick chain or implicit chain)
     console.log(`[Telegram] ✅ Chain complete. Sending success message.`);
-    let extraInfo = '';
     
     if (shouldChain && lastLog) {
-      const lastNote = (lastLog.content as any)?.note || 'task';
       const timeStr = lastLog.endedAt!.toLocaleTimeString('en-US', {
         hour: '2-digit',
         minute: '2-digit',
         timeZone: timezone,
       });
       const durationStr = duration ? `${duration}m` : '';
-      extraInfo = isQuickChain 
-        ? ` Chained from ${timeStr}${durationStr ? ` (${durationStr})` : ''}.`
-        : ` Started at ${timeStr} (after "${lastNote.substring(0, 15)}...").`;
+      const msg = isQuickChain 
+        ? `✅ Logged! ${durationStr} task from ${timeStr}.`
+        : `✅ Logged! ${durationStr} task starting at ${timeStr}.`;
+      await sendMessage(chatId, msg);
+    } else {
+      // First task or no chain
+      const timeStr = now.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: timezone,
+      });
+      await sendMessage(chatId, `✅ Logged at ${timeStr}!`);
     }
-
-    await sendMessage(chatId, `✅ Saved.${extraInfo}`);
   }
 }
 

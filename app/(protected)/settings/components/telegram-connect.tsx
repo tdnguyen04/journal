@@ -150,44 +150,52 @@ export function TelegramConnect({
                 Generate Connection Code
               </Button>
             ) : (
-              <div className='space-y-6 animate-in fade-in slide-in-from-top-2'>
-                {/* 1. Primary Action: The Deep Link */}
-                <div className='p-1 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-md hover:shadow-lg transition-shadow'>
+              <div className='space-y-4 animate-in fade-in slide-in-from-top-2'>
+                {/* Step 1: Copy the code */}
+                <div className='rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 p-4'>
+                  <p className='text-sm font-medium mb-2'>
+                    Send this to <strong>@{BOT_USERNAME}</strong> in Telegram:
+                  </p>
+                  <code className='block w-full p-3 bg-white dark:bg-slate-900 rounded-lg text-center font-mono text-sm font-bold tracking-wide select-all border border-slate-200 dark:border-slate-700'>
+                    /start {token}
+                  </code>
+                  <p className='text-xs text-muted-foreground mt-2'>
+                    Tap to select, then paste in Telegram
+                  </p>
+                </div>
+
+                {/* Step 2: Quick access button */}
+                <div className='text-center'>
+                  <p className='text-xs text-muted-foreground mb-2'>
+                    Or use this button for quick access:
+                  </p>
                   <a
                     href={`https://t.me/${BOT_USERNAME}?start=${token}`}
                     target='_blank'
                     rel='noopener noreferrer'
-                    className='flex items-center justify-center gap-2 w-full py-3 bg-white dark:bg-slate-950 rounded-[4px] text-blue-600 font-semibold hover:bg-blue-50 dark:hover:bg-slate-900 transition-colors'
+                    className='inline-flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors'
                   >
                     <Send className='w-4 h-4' />
-                    Open Telegram to Connect
+                    Open Telegram
                   </a>
                 </div>
 
-                {/* 2. Secondary Action: Manual Code */}
-                <div className='rounded-lg border border-dashed border-slate-300 dark:border-slate-700 p-4'>
-                  <div className='flex items-center justify-between mb-2'>
-                    <span className='text-xs font-medium text-muted-foreground uppercase tracking-wider'>
-                      Manual Option
-                    </span>
-                    <Button
-                      variant='ghost'
-                      size='sm'
-                      onClick={handleCancel}
-                      className='h-6 px-2 text-xs text-muted-foreground hover:text-destructive'
-                    >
+                {/* Generate new code */}
+                <div className='flex justify-center pt-2'>
+                  <Button
+                    variant='ghost'
+                    size='sm'
+                    onClick={handleGenerate}
+                    disabled={isLoading}
+                    className='text-xs text-muted-foreground hover:text-foreground'
+                  >
+                    {isLoading ? (
+                      <Loader2 className='mr-1.5 h-3 w-3 animate-spin' />
+                    ) : (
                       <RefreshCw className='mr-1.5 h-3 w-3' />
-                      Reset Code
-                    </Button>
-                  </div>
-
-                  <p className='text-sm text-muted-foreground mb-2'>
-                    If the button above doesn't work, send this to{' '}
-                    <strong>@{BOT_USERNAME}</strong>:
-                  </p>
-                  <code className='block w-full p-2 bg-slate-100 dark:bg-slate-900 rounded text-center font-mono text-sm font-bold tracking-wide select-all'>
-                    /start {token}
-                  </code>
+                    )}
+                    Generate New Code
+                  </Button>
                 </div>
               </div>
             )}
