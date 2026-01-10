@@ -27,6 +27,10 @@ model Log {
   // DATA HYGIENE
   isGapFill Boolean @default(false)
 
+  // EMOTIONAL CONTEXT (optional, user-provided via Telegram buttons)
+  mood   String? // Values: "good", "okay", "low", or free text
+  energy String? // Values: "high", "medium", "low", or free text
+
   // LIFECYCLE STATE (Business Logic)
   // "COMPLETED" = trustworthy
   // "TENTATIVE" = system assumption (time/gap guessed)
