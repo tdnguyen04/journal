@@ -54,6 +54,7 @@ export async function handleCallback(query: any) {
 
       if (action === 'chain') {
         // "Yes, right after" - chain to previous task
+        // Always clear challenge fields first to prevent stale state
         if (lastLog && lastLog.endedAt && log.endedAt) {
           const duration = Math.round(
             (log.endedAt.getTime() - lastLog.endedAt.getTime()) / 60000
@@ -72,6 +73,18 @@ export async function handleCallback(query: any) {
 
           // Edit message to show result (remove buttons)
           await editMessage(chatId, query.message.message_id, `${originalText}\n\n✅ Logged as ${duration}m task.`);
+        } else {
+          // Edge case: chaining failed (missing lastLog or endedAt), but still clear challenge fields
+          await prisma.log.update({
+            where: { id: log.id },
+            data: {
+              telegramChallengeId: null,
+              telegramChallengeType: null,
+              status: 'COMPLETED',
+            },
+          });
+          
+          await editMessage(chatId, query.message.message_id, `${originalText}\n\n✅ Logged!`);
         }
       } else if (action === 'skip') {
         // "Skip" - save as quick task with duration 0
@@ -84,7 +97,6 @@ export async function handleCallback(query: any) {
             status: 'COMPLETED',
           },
         });
-
         // Edit message to show result (remove buttons)
         await editMessage(chatId, query.message.message_id, `${originalText}\n\n📌 Saved as quick task.`);
       } else if (action === 'specify') {
@@ -297,7 +309,10 @@ export async function handleReply(message: any) {
   const log = await prisma.log.findUnique({
     where: { telegramChallengeId: replyToId },
   });
-  if (!log || !log.telegramChallengeType) return;
+  
+  if (!log || !log.telegramChallengeType) {
+    return;
+  }
 
   const lastLog = await prisma.log.findFirst({
     where: { userId: log.userId, id: { not: log.id }, endedAt: { not: null } },
@@ -326,6 +341,18 @@ export async function handleReply(message: any) {
           },
         });
         await sendMessage(chatId, `🔗 Perfect! Logged as ${duration}m task.`);
+      } else {
+        // Edge case: User said "yes" but chaining failed (missing lastLog or endedAt)
+        // Still clear challenge fields to prevent stale state and repeated force_reply
+        await prisma.log.update({
+          where: { id: log.id },
+          data: {
+            telegramChallengeId: null,
+            telegramChallengeType: null,
+            status: 'COMPLETED',
+          },
+        });
+        await sendMessage(chatId, `✅ Logged!`);
       }
     } else {
       // User said No -> Ask Duration

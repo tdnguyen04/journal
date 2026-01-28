@@ -104,7 +104,6 @@ export async function POST(req: Request) {
 
     // 4. ROUTE: Logging
     if (existingUser) {
-      console.log('Logging')
       await handleLogEntry(chatId, text, existingUser);
     } else {
       await sendMessage(
