@@ -5,6 +5,7 @@ import {
   editMessage,
   answerCallback,
   sendTypingAction,
+  deleteMessage,
 } from './client';
 import { parseDurationWithAI, generateGapCheckIn, summarizeTask, generateNoteAck } from './ai';
 
@@ -389,6 +390,14 @@ export async function handleReply(message: any) {
         warningMsg = `\n\n⚠️ **Note:** Overlaps with "${lastNote.substring(0, 15)}..." by ${overlapMins}m.`;
       }
 
+      // We're done with this prompt – delete the original force_reply question
+      try {
+        await deleteMessage(chatId, parseInt(replyToId, 10));
+      } catch (e) {
+        // Non-fatal: if deletion fails, we still proceed with logging
+        console.error('[Telegram] Failed to delete duration prompt message:', e);
+      }
+
       await prisma.log.update({
         where: { id: log.id },
         data: {
@@ -413,10 +422,18 @@ export async function handleReply(message: any) {
         { force_reply: true },
       );
       if (msg?.result) {
+        // Point the log at the *new* prompt message
         await prisma.log.update({
           where: { id: log.id },
           data: { telegramChallengeId: msg.result.message_id.toString() },
         });
+
+        // Clean up the previous bad prompt so there's only one visible question
+        try {
+          await deleteMessage(chatId, parseInt(replyToId, 10));
+        } catch (e) {
+          console.error('[Telegram] Failed to delete previous duration prompt:', e);
+        }
       }
     }
   }

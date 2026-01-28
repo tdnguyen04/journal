@@ -67,6 +67,25 @@ export async function editMessage(
   }
 }
 
+// Delete a bot message (used to clean up force_reply prompts after handling)
+export async function deleteMessage(chatId: string, messageId: number) {
+  try {
+    await fetch(
+      `https://api.telegram.org/bot${TELEGRAM_TOKEN}/deleteMessage`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          message_id: messageId,
+        }),
+      },
+    );
+  } catch (error) {
+    console.error('Telegram deleteMessage failed:', error);
+  }
+}
+
 export async function answerCallback(callbackId: string) {
   try {
     await fetch(
