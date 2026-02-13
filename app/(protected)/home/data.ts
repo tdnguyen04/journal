@@ -26,16 +26,16 @@ export async function getLogs(weekParam?: string) {
   const weekStart = startOfWeek(targetDate, { weekStartsOn: 1 }); // Monday
   const weekEnd = endOfWeek(targetDate, { weekStartsOn: 1 }); // Sunday
 
-  // Fetch logs for this week only (database-level filtering)
+  // Fetch logs that started this week; order by start time (no overlap assumed)
   const logs = await prisma.log.findMany({
     where: {
       userId: user.id,
-      createdAt: {
+      startedAt: {
         gte: weekStart,
         lte: weekEnd,
       },
     },
-    orderBy: { createdAt: 'desc' },
+    orderBy: { startedAt: 'desc' },
   });
 
   return logs;

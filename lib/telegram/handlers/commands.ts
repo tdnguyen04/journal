@@ -100,7 +100,7 @@ export async function handleNote(chatId: string, text: string, user: any) {
   }
 }
 
-const INSERT_HELP = `Send task name, start time, and end time (all required). Times must be in the past.
+const INSERT_HELP = `Send task name, start time, and end time (all required). Times must be in the past. I can't guess times—include explicit start and end.
 
 Examples:
 • /insert Team standup 9:00 9:15
@@ -135,6 +135,11 @@ export async function handleInsert(chatId: string, text: string, user: any) {
   const endedAt = new Date(parsed.endedAtIso);
   if (startedAt >= endedAt) {
     await sendMessage(chatId, 'Start time must be before end time. Please correct and try again.');
+    return;
+  }
+  const durationMinutes = (endedAt.getTime() - startedAt.getTime()) / 60000;
+  if (durationMinutes >= 12 * 60) {
+    await sendMessage(chatId, "I can't accept a range that long without explicit times. Please give start and end times (e.g. 9:00 9:15).");
     return;
   }
   if (endedAt > now || startedAt > now) {

@@ -87,7 +87,7 @@ export function TimelineView({ logs }: TimelineViewProps) {
   // Get IDs of notes that have parents (will be rendered under their tasks)
   const nestedNoteIds = new Set(parentMap.keys());
   
-  // Sort by display time (handles both Task Reports and Fleeting Thoughts)
+  // Sort by display time descending (most recent day and task on top)
   // Filter out nested notes - they'll be rendered under their parent tasks
   const sortedLogs = [...logs]
     .filter((log) => !nestedNoteIds.has(log.id))

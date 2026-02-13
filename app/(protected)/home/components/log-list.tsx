@@ -55,13 +55,12 @@ export default function LogList({ logs: initialLogs, availableTags }: LogListPro
     return map;
   }, [logs]);
 
-  // --- 1. THE GROUPING ENGINE ---
+  // --- 1. THE GROUPING ENGINE --- (by start-time date; logs already ordered by startedAt asc)
   const groupedLogs = useMemo(() => {
     const groups: Record<string, Log[]> = {};
 
     logs.forEach((log) => {
-      // Create a key like "2024-01-20"
-      const dateKey = new Date(log.createdAt).toDateString();
+      const dateKey = new Date(log.startedAt).toDateString();
       if (!groups[dateKey]) {
         groups[dateKey] = [];
       }

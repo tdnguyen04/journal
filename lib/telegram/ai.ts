@@ -176,14 +176,15 @@ User input: "${userInput}"
 
 Context:
 - Timezone: ${timezone}
-- Today's date (use when no date given): ${todayIsoDate}
+- Today's date (use as date ONLY when user does not mention a date): ${todayIsoDate}
 - Current moment (all times must be BEFORE this): ${nowIso}
 
 Rules:
 - Extract exactly one task name (the activity they did).
-- Extract start time and end time. If only time is given (e.g. "9am", "2:30pm"), use ${todayIsoDate} for the date.
-- Output startedAtIso and endedAtIso as ISO 8601 strings that include timezone offset (e.g. 2025-01-10T09:00:00-05:00).
-- If you cannot determine both start and end clearly, or the input is missing task name or times, return empty strings for the missing parts so the caller can reject.
+- Date: If the user does not mention a date, use ${todayIsoDate}. If they say "yesterday" or a specific date, use that date for both start and end.
+- Time: You MUST have explicit clock times for both start and end (e.g. "9:00", "9:15", "2pm", "3pm"). Do NOT guess or infer times. If the user mentions a date (e.g. "yesterday") or task name but does not give explicit start and end times, return empty strings for startedAtIso and endedAtIso. Never infer "all day" or full-day ranges.
+- Only output startedAtIso and endedAtIso when the user has provided clear start and end times. Output as ISO 8601 with timezone offset (e.g. 2025-01-10T09:00:00-05:00).
+- If task name or either time is missing or unclear, return empty strings for the missing parts so the caller can reject.
 
 Return JSON with: taskName (string), startedAtIso (string), endedAtIso (string).`,
     });
