@@ -8,6 +8,7 @@ import {
   deleteMessage,
 } from './client';
 import { parseDurationWithAI, generateGapCheckIn, summarizeTask, generateNoteAck } from './ai';
+import { createTask } from '@/lib/helpers/log-operations';
 
 // --- BUTTON CLICKS (Tagging + Gap Handling) ---
 export async function handleCallback(query: any) {
@@ -524,18 +525,17 @@ export async function handleLogEntry(chatId: string, text: string, user: any) {
     ? Math.round((now.getTime() - lastLog.endedAt.getTime()) / 60000)
     : 0;
 
-  // 4. SAVE TO DB
+  // 4. SAVE TO DB using operations API
   let newLog;
   try {
-    newLog = await prisma.log.create({
-      data: {
-        userId: user.userId,
-        content: { note: logText },
-        startedAt: chainStart,
-        endedAt: now,
-        duration: duration,
-        status: initialStatus,
-      },
+    newLog = await createTask({
+      userId: user.userId,
+      text: logText,
+      startedAt: chainStart,
+      endedAt: now,
+      duration: duration,
+      status: initialStatus,
+      source: 'telegram',
     });
   } catch (e) {
     console.error(`[Telegram] 💥 DB Error:`, e);
