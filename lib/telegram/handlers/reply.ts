@@ -1,5 +1,5 @@
 import prisma from '@/lib/prisma/prisma';
-import { sendMessage, deleteMessage, sendTypingAction } from '../bot-api';
+import { sendMessage, deleteMessage, sendTypingAction, type TelegramMessageResult } from '../bot-api';
 import { parseDurationWithAI } from '../ai';
 import { applyGapChain, finalizeQuickTask } from '@/lib/helpers/log-operations';
 import { getUserTimezone, formatFriendlyDate } from '../utils/timezone';
@@ -59,11 +59,12 @@ export async function handleReply(message: any) {
         "Got it! How long did it take?\nExamples: 30m, 1h, 1h30m",
         { force_reply: true },
       );
-      if (msg?.result) {
+      if (msg && msg.ok && msg.result) {
+        const result = msg.result as TelegramMessageResult;
         await prisma.log.update({
           where: { id: log.id },
           data: {
-            telegramChallengeId: msg.result.message_id.toString(),
+            telegramChallengeId: result.message_id.toString(),
             telegramChallengeType: 'GAP_DURATION',
           },
         });
@@ -115,11 +116,11 @@ export async function handleReply(message: any) {
         "Hmm, I didn't catch that. Try something like:\n• 30m\n• 1h\n• 1h30m",
         { force_reply: true },
       );
-      if (msg?.result) {
-        // Point the log at the *new* prompt message
+      if (msg && msg.ok && msg.result) {
+        const result = msg.result as TelegramMessageResult;
         await prisma.log.update({
           where: { id: log.id },
-          data: { telegramChallengeId: msg.result.message_id.toString() },
+          data: { telegramChallengeId: result.message_id.toString() },
         });
 
         // Clean up the previous bad prompt so there's only one visible question

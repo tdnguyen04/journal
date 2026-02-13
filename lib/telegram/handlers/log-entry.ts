@@ -1,5 +1,5 @@
 import prisma from '@/lib/prisma/prisma';
-import { sendMessage, sendTypingAction } from '../bot-api';
+import { sendMessage, sendTypingAction, type TelegramMessageResult } from '../bot-api';
 import { createTask } from '@/lib/helpers/log-operations';
 import { generateGapCheckIn, summarizeTask } from '../ai';
 import { getUserPrefs, formatGapDuration, getTimeOfDay } from '../utils/timezone';
@@ -129,11 +129,12 @@ export async function handleLogEntry(chatId: string, text: string, user: any) {
     });
 
     // Track the message for callback handling
-    if (msg?.result) {
+    if (msg && msg.ok && msg.result) {
+      const result = msg.result as TelegramMessageResult;
       await prisma.log.update({
         where: { id: newLog.id },
         data: {
-          telegramChallengeId: msg.result.message_id.toString(),
+          telegramChallengeId: result.message_id.toString(),
           telegramChallengeType: 'GAP_CONFIRM',
         },
       });

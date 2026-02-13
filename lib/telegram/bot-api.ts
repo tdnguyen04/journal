@@ -6,6 +6,9 @@ const RETRY_DELAY_MS = 500;
 
 type TelegramResponse = { ok: true; result?: unknown } | { ok: false; description?: string };
 
+/** Telegram sendMessage (and similar) returns a Message object; we use message_id to track for edit/delete */
+export type TelegramMessageResult = { message_id: number };
+
 /**
  * Single wrapper for Telegram Bot API calls with retry on network errors (e.g. ECONNRESET).
  * - Retries up to RETRY_ATTEMPTS on throw (network failure).

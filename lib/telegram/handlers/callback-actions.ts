@@ -1,5 +1,5 @@
 import prisma from '@/lib/prisma/prisma';
-import { sendMessage, editMessage } from '../bot-api';
+import { sendMessage, editMessage, type TelegramMessageResult } from '../bot-api';
 import { applyGapChain, finalizeQuickTask } from '@/lib/helpers/log-operations';
 
 // Constants
@@ -82,10 +82,11 @@ export async function handleSpecifyAction(
     { force_reply: true }
   );
   
-  if (msg?.result) {
+  if (msg && msg.ok && msg.result) {
+    const result = msg.result as TelegramMessageResult;
     await prisma.log.update({
       where: { id: log.id },
-      data: { telegramChallengeId: msg.result.message_id.toString() },
+      data: { telegramChallengeId: result.message_id.toString() },
     });
   }
 }
