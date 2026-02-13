@@ -165,11 +165,10 @@ export async function analyzeLog(id: string) {
       ? (log.content as unknown as LogContent)
       : { note: contentText };
     
-    // Ensure note is preserved when adding analysis
     const updatedContent: LogContent = {
-      note: existingContent.note || contentText, // Ensure note is always present
       ...existingContent,
-      analysis: output, // <--- It returns 'output', not 'object' now
+      note: existingContent.note || contentText,
+      analysis: output,
     };
     
     await updateLogContent({
