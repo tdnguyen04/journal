@@ -4,6 +4,7 @@ import { sendMessage } from '@/lib/telegram/bot-api';
 import {
   handleCallback,
   handleLogEntry,
+  handleInsert,
   handleLogout,
   handleNote,
   handleReply,
@@ -73,6 +74,7 @@ export async function POST(req: Request) {
           "→ /note Remember to call mom\n\n" +
           "**Commands**\n" +
           "/help - Show this message\n" +
+          "/insert - Backfill a past task (task start end)\n" +
           "/logout - Disconnect account"
         );
       }
@@ -92,6 +94,16 @@ export async function POST(req: Request) {
       } else {
         await sendMessage(chatId, "What's the thought? Try:\n/note Feeling productive today");
       }
+      return NextResponse.json({ ok: true });
+    }
+
+    // /insert - backfill past task (requires connected user)
+    if (text === '/insert' || text.startsWith('/insert ')) {
+      if (!existingUser) {
+        await sendMessage(chatId, notConnectedMsg);
+        return NextResponse.json({ ok: true });
+      }
+      await handleInsert(chatId, text, existingUser);
       return NextResponse.json({ ok: true });
     }
 

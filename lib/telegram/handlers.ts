@@ -4,5 +4,5 @@
 export { handleCallback } from './handlers/callback';
 export { handleLogEntry } from './handlers/log-entry';
 export { handleReply } from './handlers/reply';
-export { handleStart, handleNote, handleLogout } from './handlers/commands';
+export { handleStart, handleNote, handleLogout, handleInsert } from './handlers/commands';
 export { finalizeStaleLogs } from './handlers/cleanup';
