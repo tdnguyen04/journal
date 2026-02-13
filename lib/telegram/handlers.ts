@@ -8,7 +8,12 @@ import {
   deleteMessage,
 } from './client';
 import { parseDurationWithAI, generateGapCheckIn, summarizeTask, generateNoteAck } from './ai';
-import { createTask } from '@/lib/helpers/log-operations';
+import {
+  createTask,
+  createNote,
+  applyGapChain,
+  finalizeQuickTask,
+} from '@/lib/helpers/log-operations';
 
 // --- BUTTON CLICKS (Tagging + Gap Handling) ---
 export async function handleCallback(query: any) {
@@ -56,49 +61,45 @@ export async function handleCallback(query: any) {
 
       if (action === 'chain') {
         // "Yes, right after" - chain to previous task
-        // Always clear challenge fields first to prevent stale state
         if (lastLog && lastLog.endedAt && log.endedAt) {
-          const duration = Math.round(
-            (log.endedAt.getTime() - lastLog.endedAt.getTime()) / 60000
-          );
-          
-          await prisma.log.update({
-            where: { id: log.id },
-            data: {
-              startedAt: lastLog.endedAt,
-              duration,
-              telegramChallengeId: null,
-              telegramChallengeType: null,
-              status: 'COMPLETED',
-            },
+          const updatedLog = await applyGapChain({
+            logId: log.id,
+            userId: user.userId,
+            lastLogEndedAt: lastLog.endedAt,
+            mode: 'chain',
           });
-
+          
+          const duration = updatedLog.duration || 0;
           // Edit message to show result (remove buttons)
           await editMessage(chatId, query.message.message_id, `${originalText}\n\n✅ Logged as ${duration}m task.`);
         } else {
           // Edge case: chaining failed (missing lastLog or endedAt), but still clear challenge fields
-          await prisma.log.update({
-            where: { id: log.id },
-            data: {
-              telegramChallengeId: null,
-              telegramChallengeType: null,
-              status: 'COMPLETED',
-            },
+          // Use finalizeQuickTask to clear challenge fields and set as quick task
+          await finalizeQuickTask({
+            logId: log.id,
+            userId: user.userId,
           });
           
           await editMessage(chatId, query.message.message_id, `${originalText}\n\n✅ Logged!`);
         }
       } else if (action === 'skip') {
         // "Skip" - save as quick task with duration 0
-        await prisma.log.update({
-          where: { id: log.id },
-          data: {
-            duration: 0,
-            telegramChallengeId: null,
-            telegramChallengeType: null,
-            status: 'COMPLETED',
-          },
-        });
+        // Note: applyGapChain requires lastLogEndedAt, but for skip we don't need it
+        // We'll use log.endedAt as placeholder (not used in skip mode anyway)
+        if (!log.endedAt) {
+          // Fallback: use finalizeQuickTask if endedAt is missing
+          await finalizeQuickTask({
+            logId: log.id,
+            userId: user.userId,
+          });
+        } else {
+          await applyGapChain({
+            logId: log.id,
+            userId: user.userId,
+            lastLogEndedAt: log.endedAt, // Placeholder - not used in skip mode
+            mode: 'skip',
+          });
+        }
         // Edit message to show result (remove buttons)
         await editMessage(chatId, query.message.message_id, `${originalText}\n\n📌 Saved as quick task.`);
       } else if (action === 'specify') {
@@ -266,14 +267,9 @@ async function finalizeStaleLogs(userId: string, chatId: string) {
     );
 
     // 1. Close DB State - assume quick task when skipped
-    await prisma.log.update({
-      where: { id: staleLog.id },
-      data: {
-        telegramChallengeId: null,
-        telegramChallengeType: null,
-        status: 'COMPLETED',
-        duration: 0,
-      },
+    await finalizeQuickTask({
+      logId: staleLog.id,
+      userId: userId,
     });
 
     // 2. UI Cleanup (Attempt)
@@ -328,31 +324,21 @@ export async function handleReply(message: any) {
     );
 
     if (isYes) {
-      if (lastLog && lastLog.endedAt) {
-        const duration = Math.round(
-          (log.endedAt!.getTime() - lastLog.endedAt.getTime()) / 60000,
-        );
-        await prisma.log.update({
-          where: { id: log.id },
-          data: {
-            startedAt: lastLog.endedAt,
-            duration,
-            telegramChallengeId: null,
-            telegramChallengeType: null,
-            status: 'COMPLETED', // <--- VERIFIED!
-          },
+      if (lastLog && lastLog.endedAt && log.endedAt) {
+        const updatedLog = await applyGapChain({
+          logId: log.id,
+          userId: log.userId,
+          lastLogEndedAt: lastLog.endedAt,
+          mode: 'chain',
         });
+        const duration = updatedLog.duration || 0;
         await sendMessage(chatId, `🔗 Perfect! Logged as ${duration}m task.`);
       } else {
         // Edge case: User said "yes" but chaining failed (missing lastLog or endedAt)
         // Still clear challenge fields to prevent stale state and repeated force_reply
-        await prisma.log.update({
-          where: { id: log.id },
-          data: {
-            telegramChallengeId: null,
-            telegramChallengeType: null,
-            status: 'COMPLETED',
-          },
+        await finalizeQuickTask({
+          logId: log.id,
+          userId: log.userId,
         });
         await sendMessage(chatId, `✅ Logged!`);
       }
@@ -399,15 +385,12 @@ export async function handleReply(message: any) {
         console.error('[Telegram] Failed to delete duration prompt message:', e);
       }
 
-      await prisma.log.update({
-        where: { id: log.id },
-        data: {
-          startedAt: newStartTime,
-          duration: minutes,
-          telegramChallengeId: null,
-          telegramChallengeType: null,
-          status: 'COMPLETED', // <--- VERIFIED!
-        },
+      await applyGapChain({
+        logId: log.id,
+        userId: log.userId,
+        lastLogEndedAt: log.endedAt!, // Used to calculate newStartTime
+        mode: 'duration',
+        durationMinutes: minutes,
       });
 
       const timezone = await getUserTimezone(log.userId);
@@ -446,16 +429,10 @@ export async function handleNote(chatId: string, text: string, user: any) {
   await sendTypingAction(chatId);
 
   try {
-    await prisma.log.create({
-      data: {
-        userId: user.userId,
-        content: { note: text },
-        // Notes have no endedAt/duration (distinguishes from tasks)
-        // startedAt uses default, but endedAt being null marks this as a note
-        endedAt: null,
-        duration: null,
-        status: 'COMPLETED',
-      },
+    await createNote({
+      userId: user.userId,
+      text: text,
+      source: 'telegram',
     });
 
     // Generate personalized acknowledgment based on note content

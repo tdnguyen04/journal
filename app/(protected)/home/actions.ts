@@ -7,6 +7,12 @@ import { LogSchema } from './schemas';
 import { openai } from '@ai-sdk/openai';
 import { generateText, Output } from 'ai'
 import { AnalysisSchema } from '@/lib/validations/analysis';
+import {
+  createNote,
+  deleteLog as deleteLogOp,
+  updateLogContent,
+} from '@/lib/helpers/log-operations';
+import { LogContent } from '@/lib/helpers/log';
 
 
 export type ActionState = {
@@ -35,19 +41,10 @@ export async function createLog(
 
   try {
     // 2. Database Write - Note has no time tracking
-    await prisma.log.create({
-      data: {
-        userId: user.id,
-        // Storing as JSON to match your schema
-        content: {
-          note: parsed.data.content,
-          timestamp: new Date().toISOString(),
-        },
-        // Notes have no endedAt/duration (distinguishes from tasks)
-        // startedAt uses default, but endedAt being null marks this as a note
-        endedAt: null,
-        duration: null,
-      },
+    await createNote({
+      userId: user.id,
+      text: parsed.data.content,
+      source: 'browser',
     });
 
     // 3. Refresh UI
@@ -70,19 +67,12 @@ export async function deleteLog(id: string) {
   }
 
   try {
-    // Security: We use updateMany/deleteMany with userId to ensure
-    // a user cannot delete someone else's log by guessing an ID.
-    // Prisma returns { count: n }. If count is 0, the log didn't exist or wasn't yours.
-    const result = await prisma.log.deleteMany({
-      where: {
-        id: id,
-        userId: user.id, // THE CRITICAL CHECK
-      },
+    // Security: deleteLog operation includes ownership check
+    await deleteLogOp({
+      logId: id,
+      userId: user.id,
+      source: 'browser',
     });
-
-    if (result.count === 0) {
-      return { success: false, message: 'Log not found or unauthorized' };
-    }
 
     revalidatePath('/home');
     return { success: true, message: 'Log deleted' };
@@ -106,21 +96,16 @@ export async function updateLog(id: string, rawContent: string) {
     if (!parsed.success) {
       return { success: false, message: 'Content cannot be empty' };
     }
-    const result = await prisma.log.updateMany({
-      where: {
-        id: id,
-        userId: user.id, // THE CRITICAL CHECK
-      },
-      data: {
-        content: { 
-          note: parsed.data.content, 
-          updatedAt: new Date().toISOString() 
-        },
+    
+    await updateLogContent({
+      logId: id,
+      userId: user.id,
+      newContent: {
+        note: parsed.data.content,
+        updatedAt: new Date().toISOString(),
       },
     });
-    if (result.count === 0) {
-      return { success: false, message: 'Log not found or unauthorized' };
-    }
+    
     revalidatePath('/home');
     return { success: true, message: 'Log updated' };
   } catch (error) {
@@ -175,18 +160,22 @@ export async function analyzeLog(id: string) {
     });
 
     // 4. Save result
-    const currentContent = typeof log.content === 'object' && log.content !== null
-      ? (log.content as object) 
+    // Extract existing content, ensuring it has the required 'note' field
+    const existingContent = typeof log.content === 'object' && log.content !== null && !Array.isArray(log.content)
+      ? (log.content as unknown as LogContent)
       : { note: contentText };
     
-    await prisma.log.update({
-      where: { id },
-      data: {
-        content: {
-          ...currentContent,
-          analysis: output // <--- It returns 'output', not 'object' now
-        }
-      }
+    // Ensure note is preserved when adding analysis
+    const updatedContent: LogContent = {
+      note: existingContent.note || contentText, // Ensure note is always present
+      ...existingContent,
+      analysis: output, // <--- It returns 'output', not 'object' now
+    };
+    
+    await updateLogContent({
+      logId: id,
+      userId: user.id,
+      newContent: updatedContent,
     });
 
     revalidatePath('/home');
