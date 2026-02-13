@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma/prisma';
-import { sendMessage } from '@/lib/telegram/client';
+import { sendMessage } from '@/lib/telegram/bot-api';
 import {
   handleCallback,
   handleLogEntry,

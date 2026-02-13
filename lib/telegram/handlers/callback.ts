@@ -1,4 +1,4 @@
-import { sendMessage, answerCallback } from '../client';
+import { sendMessage, answerCallback } from '../bot-api';
 import { handleGapCallback, handleTagCallback } from './callback-actions';
 
 const ERROR_MSG = 'Hmm, something went wrong. Try again in a moment?';

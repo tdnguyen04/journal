@@ -1,5 +1,5 @@
 import prisma from '@/lib/prisma/prisma';
-import { sendMessage, editMessage } from '../client';
+import { sendMessage, editMessage } from '../bot-api';
 import { applyGapChain, finalizeQuickTask } from '@/lib/helpers/log-operations';
 
 // Constants

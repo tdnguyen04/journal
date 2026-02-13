@@ -1,5 +1,5 @@
 import prisma from '@/lib/prisma/prisma';
-import { sendMessage, deleteMessage, sendTypingAction } from '../client';
+import { sendMessage, deleteMessage, sendTypingAction } from '../bot-api';
 import { parseDurationWithAI } from '../ai';
 import { applyGapChain, finalizeQuickTask } from '@/lib/helpers/log-operations';
 import { getUserTimezone, formatFriendlyDate } from '../utils/timezone';

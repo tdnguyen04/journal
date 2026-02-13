@@ -1,5 +1,5 @@
 import prisma from '@/lib/prisma/prisma';
-import { sendMessage, sendTypingAction } from '../client';
+import { sendMessage, sendTypingAction } from '../bot-api';
 import { createNote } from '@/lib/helpers/log-operations';
 import { generateNoteAck } from '../ai';
 

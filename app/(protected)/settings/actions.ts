@@ -139,7 +139,7 @@ export async function disconnectTelegram() {
     // Notify the user in Telegram before disconnecting
     if (prefs?.telegramChatId) {
       try {
-        const { sendMessage } = await import('@/lib/telegram/client');
+        const { sendMessage } = await import('@/lib/telegram/bot-api');
         await sendMessage(
           prefs.telegramChatId,
           "🔌 You've been disconnected from this account.\n\n" +
