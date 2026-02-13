@@ -1,7 +1,8 @@
 import prisma from '@/lib/prisma/prisma';
 import { sendMessage, sendTypingAction } from '../bot-api';
-import { createNote } from '@/lib/helpers/log-operations';
-import { generateNoteAck } from '../ai';
+import { createNote, createTask } from '@/lib/helpers/log-operations';
+import { generateNoteAck, parseInsertInput } from '../ai';
+import { getUserTimezone, formatFriendlyDate } from '../utils/timezone';
 
 /**
  * Handle /logout command - disconnect Telegram chat from user account
@@ -96,5 +97,82 @@ export async function handleNote(chatId: string, text: string, user: any) {
   } catch (e) {
     console.error(`[Telegram] 💥 Note DB Error:`, e);
     await sendMessage(chatId, 'Hmm, something went wrong. Try again in a moment?');
+  }
+}
+
+const INSERT_HELP = `Send task name, start time, and end time (all required). Times must be in the past.
+
+Examples:
+• /insert Team standup 9:00 9:15
+• /insert Meeting 2pm 3pm
+
+If you omit the date, today is assumed.`;
+
+/**
+ * Handle /insert command - backfill a task with custom start/end times
+ */
+export async function handleInsert(chatId: string, text: string, user: any) {
+  const payload = text === '/insert' ? '' : text.slice(7).trim();
+  if (!payload) {
+    await sendMessage(chatId, INSERT_HELP);
+    return;
+  }
+
+  await sendTypingAction(chatId);
+
+  const timezone = await getUserTimezone(user.userId);
+  const now = new Date();
+  const todayIsoDate = now.toLocaleDateString('en-CA', { timeZone: timezone }); // YYYY-MM-DD
+  const nowIso = now.toISOString();
+
+  const parsed = await parseInsertInput(payload, timezone, todayIsoDate, nowIso);
+  if (!parsed?.taskName?.trim() || !parsed.startedAtIso?.trim() || !parsed.endedAtIso?.trim()) {
+    await sendMessage(chatId, 'I need task name, start time, and end time.\n\n' + INSERT_HELP);
+    return;
+  }
+
+  const startedAt = new Date(parsed.startedAtIso);
+  const endedAt = new Date(parsed.endedAtIso);
+  if (startedAt >= endedAt) {
+    await sendMessage(chatId, 'Start time must be before end time. Please correct and try again.');
+    return;
+  }
+  if (endedAt > now || startedAt > now) {
+    await sendMessage(chatId, "Times must be in the past. Use /insert to backfill tasks you forgot to log.");
+    return;
+  }
+
+  const existingTasks = await prisma.log.findMany({
+    where: { userId: user.userId, endedAt: { not: null } },
+    select: { id: true, startedAt: true, endedAt: true, content: true },
+  });
+  const overlaps: { name: string; start: Date; end: Date }[] = [];
+  for (const log of existingTasks) {
+    if (!log.endedAt || !log.startedAt) continue;
+    if (startedAt.getTime() < log.endedAt.getTime() && log.startedAt.getTime() < endedAt.getTime()) {
+      const name = (log.content as any)?.note ?? 'Task';
+      overlaps.push({ name, start: log.startedAt, end: log.endedAt });
+    }
+  }
+  if (overlaps.length > 0) {
+    const list = overlaps.map((o) => `• "${o.name}" (${formatFriendlyDate(o.start, timezone)} – ${formatFriendlyDate(o.end, timezone)})`).join('\n');
+    await sendMessage(chatId, `This overlaps with existing tasks:\n${list}\n\nPlease pick a different time range.`);
+    return;
+  }
+
+  try {
+    await createTask({
+      userId: user.userId,
+      text: parsed.taskName.trim(),
+      startedAt,
+      endedAt,
+      source: 'telegram',
+    });
+    const startStr = formatFriendlyDate(startedAt, timezone);
+    const endStr = formatFriendlyDate(endedAt, timezone);
+    await sendMessage(chatId, `✅ Logged: "${parsed.taskName.trim()}" from ${startStr} to ${endStr}.`);
+  } catch (e) {
+    console.error('[Telegram] Insert createTask error:', e);
+    await sendMessage(chatId, 'Something went wrong saving that. Try again in a moment?');
   }
 }
