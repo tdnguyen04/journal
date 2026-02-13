@@ -1,114 +1,97 @@
-// lib/telegram/client.ts
+// lib/telegram/bot-api.ts
 const TELEGRAM_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const TELEGRAM_BASE = `https://api.telegram.org/bot${TELEGRAM_TOKEN}`;
+const RETRY_ATTEMPTS = 3;
+const RETRY_DELAY_MS = 500;
+
+type TelegramResponse = { ok: true; result?: unknown } | { ok: false; description?: string };
+
+/**
+ * Single wrapper for Telegram Bot API calls with retry on network errors (e.g. ECONNRESET).
+ * - Retries up to RETRY_ATTEMPTS on throw (network failure).
+ * - Does not retry when Telegram returns ok: false (e.g. 400 Bad Request).
+ * - Returns parsed response or null on failure.
+ */
+async function telegramApi(
+  method: string,
+  body: Record<string, unknown>,
+  logLabel?: string
+): Promise<TelegramResponse | null> {
+  const label = logLabel ?? method;
+  const url = `${TELEGRAM_BASE}/${method}`;
+
+  for (let i = 0; i < RETRY_ATTEMPTS; i++) {
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Connection: 'close' },
+        body: JSON.stringify(body),
+      });
+      const data = (await res.json()) as TelegramResponse;
+
+      if (!data.ok) {
+        console.error(`❌ Telegram API [${label}]:`, (data as { description?: string }).description);
+        return null;
+      }
+      return data; // Success — return immediately, no extra attempts
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error(`⚠️ Network [${label}] (attempt ${i + 1}/${RETRY_ATTEMPTS}):`, msg);
+      if (i === RETRY_ATTEMPTS - 1) return null;
+      await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+    }
+  }
+  return null;
+}
 
 export async function sendMessage(
   chatId: string,
   text: string,
-  keyboard?: any,
+  keyboard?: unknown,
 ) {
-  const body: any = { chat_id: chatId, text };
-  if (keyboard) {
-    body.reply_markup = keyboard;
-  }
-
-  // ✅ ADDED: Retry logic (3 attempts) to fix ECONNRESET
-  for (let i = 0; i < 3; i++) {
-    try {
-      const res = await fetch(
-        `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Connection: 'close' },
-          body: JSON.stringify(body),
-          // conn reset fixes: sometimes helps to explicitly set keepalive false in node,
-          // but retry is the most robust fix for fetch.
-        },
-      );
-
-      const data = await res.json();
-
-      if (!data.ok) {
-        console.error(`❌ Telegram API Error:`, data.description);
-        return null; // Don't retry if Telegram explicitly rejected it (e.g. 400 Bad Request)
-      }
-
-      return data; // Success
-    } catch (error: any) {
-      console.error(`⚠️ Network Error (Attempt ${i + 1}/3):`, error.message);
-
-      if (i === 2) return null; // Fail silently after 3 tries
-      await new Promise((r) => setTimeout(r, 500)); // Wait 500ms before retrying
-    }
-  }
+  const body: Record<string, unknown> = { chat_id: chatId, text };
+  if (keyboard) body.reply_markup = keyboard;
+  return telegramApi('sendMessage', body, 'sendMessage');
 }
 
 export async function editMessage(
   chatId: string,
   messageId: number,
   text: string,
-  keyboard?: any,
-) {
-  try {
-    await fetch(
-      `https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageText`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          message_id: messageId,
-          text: text,
-          reply_markup: keyboard,
-        }),
-      },
-    );
-  } catch (error) {
-    console.error('Telegram editMessage failed:', error);
-  }
+  keyboard?: unknown,
+): Promise<TelegramResponse | null> {
+  return telegramApi(
+    'editMessageText',
+    {
+      chat_id: chatId,
+      message_id: messageId,
+      text,
+      reply_markup: keyboard ?? undefined,
+    },
+    'editMessageText'
+  );
 }
 
-// Delete a bot message (used to clean up force_reply prompts after handling)
 export async function deleteMessage(chatId: string, messageId: number) {
-  try {
-    await fetch(
-      `https://api.telegram.org/bot${TELEGRAM_TOKEN}/deleteMessage`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          message_id: messageId,
-        }),
-      },
-    );
-  } catch (error) {
-    console.error('Telegram deleteMessage failed:', error);
-  }
+  return telegramApi(
+    'deleteMessage',
+    { chat_id: chatId, message_id: messageId },
+    'deleteMessage'
+  );
 }
 
 export async function answerCallback(callbackId: string) {
-  try {
-    await fetch(
-      `https://api.telegram.org/bot${TELEGRAM_TOKEN}/answerCallbackQuery`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ callback_query_id: callbackId }),
-      },
-    );
-  } catch (e) {
-    console.error('Ack failed', e);
-  }
+  return telegramApi(
+    'answerCallbackQuery',
+    { callback_query_id: callbackId },
+    'answerCallbackQuery'
+  );
 }
 
 export async function sendTypingAction(chatId: string) {
-  try {
-    await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendChatAction`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, action: 'typing' }),
-    });
-  } catch (e) {
-    console.error('Typing Action Failed', e);
-  }
+  return telegramApi(
+    'sendChatAction',
+    { chat_id: chatId, action: 'typing' },
+    'sendChatAction'
+  );
 }

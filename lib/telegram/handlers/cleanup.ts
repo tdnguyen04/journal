@@ -1,5 +1,5 @@
 import prisma from '@/lib/prisma/prisma';
-import { sendMessage, editMessage } from '../bot-api';
+import { sendMessage, deleteMessage } from '../bot-api';
 import { finalizeQuickTask } from '@/lib/helpers/log-operations';
 import { getUserTimezone, formatFriendlyDate } from '../utils/timezone';
 
@@ -19,6 +19,7 @@ export async function finalizeStaleLogs(userId: string, chatId: string) {
     console.log(
       `[Telegram] ⚠️ Found stale log "${staleLog.id}". Cleaning up...`,
     );
+    console.log(staleLog);
 
     // 1. Close DB State - assume quick task when skipped
     await finalizeQuickTask({
@@ -31,13 +32,10 @@ export async function finalizeStaleLogs(userId: string, chatId: string) {
     const timezone = await getUserTimezone(userId);
     const timeStr = formatFriendlyDate(staleLog.startedAt, timezone);
 
-    // We use a try/catch here because if this fails, we don't want to crash the whole flow
+    // We use a try/catch here because if this fails, we don't want to crash the whole flow.
+    // Delete the stale prompt (edit fails for force_reply messages; delete works).
     try {
-      await editMessage(
-        chatId,
-        parseInt(staleLog.telegramChallengeId),
-        `📌 "${note}" - saved as quick task`,
-      );
+      await deleteMessage(chatId, parseInt(staleLog.telegramChallengeId, 10));
       await sendMessage(
         chatId,
         `📌 Saved your previous entry "${note}" as a quick task (${timeStr}).`,
