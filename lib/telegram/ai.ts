@@ -1,6 +1,7 @@
 // lib/telegram/ai.ts
 import { openai } from '@ai-sdk/openai';
-import { generateText } from 'ai';
+import { generateText, Output } from 'ai';
+import { z } from 'zod';
 
 export async function parseDurationWithAI(userText: string): Promise<number | null> {
   try {
@@ -141,5 +142,63 @@ Your acknowledgment:`,
   } catch (error) {
     console.error("❌ AI Note Ack Error:", error);
     return "📝 Got it! Saved.";
+  }
+}
+
+// --- /insert command: parse task name + start/end times ---
+
+export const InsertParseSchema = z.object({
+  taskName: z.string().min(1).describe('The task or activity name'),
+  startedAtIso: z.string().describe('Start time as ISO 8601 string in the given timezone'),
+  endedAtIso: z.string().describe('End time as ISO 8601 string in the given timezone'),
+});
+
+export type InsertParseResult = z.infer<typeof InsertParseSchema>;
+
+/**
+ * Parse user input for /insert: task name, start time, end time.
+ * If no date is mentioned, times are assumed to be on todayIsoDate in the given timezone.
+ * Returns null if parsing fails or required fields are missing.
+ */
+export async function parseInsertInput(
+  userInput: string,
+  timezone: string,
+  todayIsoDate: string,
+  nowIso: string
+): Promise<InsertParseResult | null> {
+  try {
+    const { output } = await generateText({
+      model: openai('gpt-4o-mini'),
+      output: Output.object({ schema: InsertParseSchema }),
+      prompt: `Extract task name and start/end times from this user input for a past log entry.
+
+User input: "${userInput}"
+
+Context:
+- Timezone: ${timezone}
+- Today's date (use when no date given): ${todayIsoDate}
+- Current moment (all times must be BEFORE this): ${nowIso}
+
+Rules:
+- Extract exactly one task name (the activity they did).
+- Extract start time and end time. If only time is given (e.g. "9am", "2:30pm"), use ${todayIsoDate} for the date.
+- Output startedAtIso and endedAtIso as ISO 8601 strings that include timezone offset (e.g. 2025-01-10T09:00:00-05:00).
+- If you cannot determine both start and end clearly, or the input is missing task name or times, return empty strings for the missing parts so the caller can reject.
+
+Return JSON with: taskName (string), startedAtIso (string), endedAtIso (string).`,
+    });
+
+    if (!output?.taskName?.trim() || !output?.startedAtIso?.trim() || !output?.endedAtIso?.trim()) {
+      return null;
+    }
+    const started = new Date(output.startedAtIso);
+    const ended = new Date(output.endedAtIso);
+    if (isNaN(started.getTime()) || isNaN(ended.getTime()) || started >= ended) {
+      return null;
+    }
+    return output as InsertParseResult;
+  } catch (error) {
+    console.error('❌ parseInsertInput Error:', error);
+    return null;
   }
 }
